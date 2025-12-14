@@ -11,8 +11,11 @@
 		<snippet name="speedometer-entry">
 			<Panel class="v-align-center h-align-center">
 				<Panel id="SpeedometerContainer" class="speedometer">
-					<Label id="SpeedometerLabel" text="" class="text-align-center" />
-					<Label id="SpeedometerComparisonLabel" text="" />
+					<Panel class="speedometer__main">
+						<Label id="SpeedometerLabel" text="" class="text-align-center" />
+						<Label id="SpeedometerComparisonLabel" text="" />
+					</Panel>
+					<Label id="SpeedometerYawSpeedLabel" text="" class="speedometer__yawspeed text-align-center" />
 				</Panel>
 			</Panel>
 		</snippet>

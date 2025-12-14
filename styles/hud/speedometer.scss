@@ -8,7 +8,20 @@
 
 .speedometer {
 	align: center center;
-	flow-children: right;
+	flow-children: down;
+
+	&__main {
+		flow-children: right;
+		horizontal-align: center;
+	}
+
+	&__yawspeed {
+		font-size: $speedometer-event-font-size;
+		font-weight: $speedometer-event-font-weight;
+		color: $green;
+		horizontal-align: center;
+		white-space: nowrap;
+	}
 
 	&__axis {
 		font-weight: $speedometer-axis-font-weight;

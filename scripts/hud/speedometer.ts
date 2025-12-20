@@ -326,11 +326,12 @@ class SpeedometerHandler {
 
 	updateYawSpeedDisplay() {
 		const yawSpeed = GameInterfaceAPI.GetSettingFloat('cl_yawspeed');
+		const sensitivity = GameInterfaceAPI.GetSettingFloat('sensitivity');
 		const speedometers = this.speedometers.get(SpeedometerType.OVERALL_VELOCITY);
 		if (!speedometers) return;
 
 		for (const speedometer of speedometers) {
-			speedometer.yawSpeedLabel.text = `${yawSpeed.toFixed(0)}`;
+			speedometer.yawSpeedLabel.text = `${yawSpeed.toFixed(0)} | ${sensitivity.toFixed(2)}`;
 		}
 	}
 

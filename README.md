@@ -2,6 +2,18 @@
 
 > _Momentum Mod's game User Interface files used by the Strata Source Engine's Panorama UI framework._
 
+## tmck-code's custom changes
+
+- display yawspeed and mouse sensitivity in the speedometer, underneath the speed
+- use yellow for the main speedometer number
+  - when using "colour mode == comparison based", use green & orange for increase/decrease rather than red & blue
+ 
+### custom changes demo
+
+https://github.com/user-attachments/assets/12cf24b7-9078-4093-904a-5e9ea9b54e93
+
+---
+
 # Structure
 
 The repository primarily consists of XML, SCSS and TypeScript files. It also includes all icons and various images and

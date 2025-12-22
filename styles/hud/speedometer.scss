@@ -26,7 +26,7 @@
 	&__axis {
 		font-weight: $speedometer-axis-font-weight;
 		font-size: $speedometer-axis-font-size;
-		color: $yellow;
+		color: $speedometer-color-default
 		&__comparison {
 			font-weight: $speedometer-axis-comparison-font-weight;
 			font-size: $speedometer-axis-comparison-font-size;

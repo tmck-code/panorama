@@ -661,10 +661,8 @@ $speedometer-event-comparison-font-weight: normal !default;
 $speedometer-event-comparison-font-size: 16px !default;
 $speedometer-event-fadeout-time: 5s !default;
 
-// $speedometer-color-increase: $blue !default;
-// $speedometer-color-decrease: $red !default;
-$speedometer-color-increase: rgb(179, 255, 0) !default;
-$speedometer-color-decrease: rgb(255, 166, 0) !default;
+$speedometer-color-increase: $blue !default;
+$speedometer-color-decrease: $red !default;
 
 // ================
 // DFJUMP

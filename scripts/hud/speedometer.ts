@@ -30,6 +30,7 @@ class Speedometer {
 	speedometerPanel: Panel;
 	speedometerLabel: Label;
 	comparisonLabel: Label;
+	yawSpeedLabel: Label;
 	settings: RuntimeSettings;
 	prevVal: number;
 	fadeoutEventHandle: number;
@@ -39,6 +40,7 @@ class Speedometer {
 		this.speedometerPanel = speedometerPanel;
 		this.speedometerLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerLabel');
 		this.comparisonLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerComparisonLabel');
+		this.yawSpeedLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerYawSpeedLabel');
 		this.settings = settings;
 		this.prevVal = 0;
 
@@ -136,6 +138,7 @@ class SpeedometerHandler {
 
 		this.correctedColorizeDeadzone = deltaTime * COLORIZE_DEADZONE;
 		this.updateSpeedometersOfType(SpeedometerType.OVERALL_VELOCITY, velocity);
+		this.updateYawSpeedDisplay();
 	}
 
 	/* TODO: replace with updates based on new timer events
@@ -319,6 +322,16 @@ class SpeedometerHandler {
 	// Overall velocity speedometers shouldn't fade out as they constantly update
 	canSpeedometerTypeFadeOut(type: SpeedometerType): boolean {
 		return type !== SpeedometerType.OVERALL_VELOCITY;
+	}
+
+	updateYawSpeedDisplay() {
+		const yawSpeed = GameInterfaceAPI.GetSettingFloat('cl_yawspeed');
+		const speedometers = this.speedometers.get(SpeedometerType.OVERALL_VELOCITY);
+		if (!speedometers) return;
+
+		for (const speedometer of speedometers) {
+			speedometer.yawSpeedLabel.text = `${yawSpeed.toFixed(0)}`;
+		}
 	}
 
 	appendRangeColorProfileInfo(

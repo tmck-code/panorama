@@ -16,6 +16,7 @@ const AXIS_LABEL_CLASS = 'speedometer__axis';
 const AXIS_COMPLABEL_CLASS = 'speedometer__axis__comparison';
 const EVENT_LABEL_CLASS = 'speedometer__event';
 const EVENT_COMPLABEL_CLASS = 'speedometer__event__comparison';
+const DUCKED_CLASS = 'speedometer__duck-icon--ducked';
 
 interface Range {
 	min: number;
@@ -31,6 +32,7 @@ class Speedometer {
 	speedometerLabel: Label;
 	comparisonLabel: Label;
 	yawSpeedLabel: Label;
+	duckIcon: Panel;
 	settings: RuntimeSettings;
 	prevVal: number;
 	fadeoutEventHandle: number;
@@ -41,8 +43,15 @@ class Speedometer {
 		this.speedometerLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerLabel');
 		this.comparisonLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerComparisonLabel');
 		this.yawSpeedLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerYawSpeedLabel');
+		this.duckIcon = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckIcon');
 		this.settings = settings;
 		this.prevVal = 0;
+
+		// The duck indicator only tracks the player's actual crouch state, which is
+		// only meaningful on the live overall-velocity readout (not event speedos).
+		if (this.type !== SpeedometerType.OVERALL_VELOCITY) {
+			this.duckIcon.AddClass(HIDDEN_CLASS);
+		}
 
 		this.speedometerLabel.AddClass(
 			this.type === SpeedometerType.OVERALL_VELOCITY ? AXIS_LABEL_CLASS : EVENT_LABEL_CLASS
@@ -139,6 +148,23 @@ class SpeedometerHandler {
 		this.correctedColorizeDeadzone = deltaTime * COLORIZE_DEADZONE;
 		this.updateSpeedometersOfType(SpeedometerType.OVERALL_VELOCITY, velocity);
 		this.updateYawSpeedDisplay();
+		this.updateDuckIndicator();
+	}
+
+	// Lights the crouch glyph while the player is ducking. The duck key is bound (in
+	// autoexec.cfg) to flip the `duckpressed` userinfo convar, giving an immediate
+	// key-press signal; OR'd with the (delayed) crouch state so it still works without
+	// the cfg and stays lit through the stand-up transition.
+	updateDuckIndicator() {
+		const speedometers = this.speedometers.get(SpeedometerType.OVERALL_VELOCITY);
+		if (!speedometers) return;
+
+		const keyPressed = GameInterfaceAPI.GetSettingInt('duckpressed') === 1;
+		const ducking = keyPressed || MomentumPlayerAPI.IsDucking();
+
+		for (const speedometer of speedometers) {
+			speedometer.duckIcon.SetHasClass(DUCKED_CLASS, ducking);
+		}
 	}
 
 	/* TODO: replace with updates based on new timer events

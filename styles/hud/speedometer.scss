@@ -15,6 +15,25 @@
 		horizontal-align: center;
 	}
 
+	// Crouch glyph beside the speed number. Mirrors the keypress widget's idiom:
+	// dimmed when standing, lit when the player is ducked (toggled in code).
+	&__duck-icon {
+		width: 22px;
+		height: 22px;
+		vertical-align: center;
+		margin-right: 6px;
+		wash-color: $speedometer-color-default;
+		opacity: 0.15;
+		transition-property: opacity, wash-color;
+		transition-duration: 0.05s;
+		transition-timing-function: ease-in-out;
+
+		&--ducked {
+			opacity: 1;
+			wash-color: $speedometer-color-increase;
+		}
+	}
+
 	&__yawspeed {
 		font-size: 8px;
 		font-weight: $speedometer-event-font-weight;

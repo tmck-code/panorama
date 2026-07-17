@@ -1,6 +1,7 @@
 import { PanelHandler } from 'util/module-helpers';
 import { tupleToRgbaString } from 'util/colors';
 import { SpeedometerColorType, SpeedometerType } from 'common/speedometer';
+import { TimerState } from 'common/timer';
 
 // arbitrary value to determine how much speed needs to change to be considered an increase/decrease
 // adjusted by speedometer update delta time
@@ -78,8 +79,8 @@ class Speedometer {
 @PanelHandler()
 class SpeedometerHandler {
 	container = $<Panel>('#SpeedometersContainer');
-	lastZone = 0;
 	correctedColorizeDeadzone = 0;
+	prevTimerState: TimerState = TimerState.DISABLED;
 
 	speedometers: Map<SpeedometerType, Array<Speedometer>> = new Map();
 
@@ -99,6 +100,10 @@ class SpeedometerHandler {
 		$.RegisterEventHandler('OnSpeedometerUpdate', this.container, (deltaTime: float) =>
 			this.onSpeedometerUpdate(deltaTime)
 		);
+
+		// Zone-velocity speedometer: capture the player's speed the instant the run timer
+		// starts (transitions into RUNNING).
+		$.RegisterForUnhandledEvent('OnObservedTimerStateChange', () => this.onTimerStateChange());
 
 		// color profiles load before speedo settings, so listening to just the speedo settings load event should be enough
 		$.RegisterForUnhandledEvent('OnSpeedometerSettingsLoaded', (succ: boolean) => this.onSettingsUpdate(succ));
@@ -167,42 +172,21 @@ class SpeedometerHandler {
 		}
 	}
 
-	/* TODO: replace with updates based on new timer events
-	onZoneChange(enter: boolean, linear: boolean, curZone: int32, _curTrack: int32, timerState: TimerState_OLD) {
-		const startZone = curZone === 1;
-		if (enter && startZone) {
-			this.lastZone = 0;
+	// Capture the player's speed the moment the timer starts running, and reset the readout
+	// whenever the run isn't actively going so a stale number doesn't linger.
+	onTimerStateChange() {
+		const { state } = MomentumTimerAPI.GetObservedTimerStatus();
+
+		if (state === TimerState.RUNNING && this.prevTimerState !== TimerState.RUNNING) {
+			const v = MomentumPlayerAPI.GetVelocity();
+			const speed = Math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2);
+			this.updateZoneSpeedometers(speed);
+		} else if (state === TimerState.DISABLED || state === TimerState.PRIMED) {
 			this.resetSpeedometerFadeouts();
-			return;
 		}
 
-		if (timerState === 0) return; // timer isn't running
-
-		// return on current or previous zone, on a linear map
-		if (curZone <= this.lastZone && linear) return;
-
-		// show only on zone enter for linear maps, zone exits on staged maps,
-		// and start zone exits on linear maps
-		const exitStartOnLinear = linear && !enter && startZone;
-		if (linear === !enter && !exitStartOnLinear) return;
-
-		this.lastZone = curZone;
-		const actualSpeedAbs = ZonesAPI.GetZoneSpeed(curZone, false);
-		const actualSpeedHoriz = ZonesAPI.GetZoneSpeed(curZone, true);
-		const comparisonLoaded = RunComparisonsAPI.IsComparisonLoaded();
-
-		if (comparisonLoaded) {
-			const comparisonSpeedAbs = RunComparisonsAPI.GetLoadedComparisonSpeed(curZone, false);
-			const comparisonSpeedHoriz = RunComparisonsAPI.GetLoadedComparisonSpeed(curZone, true);
-			const diffAbs = actualSpeedAbs - comparisonSpeedAbs;
-			const diffHoriz = actualSpeedHoriz - comparisonSpeedHoriz;
-
-			this.updateZoneSpeedometers(actualSpeedAbs, actualSpeedHoriz, true, diffAbs, diffHoriz);
-		} else {
-			this.updateZoneSpeedometers(actualSpeedAbs, actualSpeedHoriz, false);
-		}
+		this.prevTimerState = state;
 	}
-	*/
 
 	resetSpeedometerFadeouts() {
 		for (const [type, speedometers] of this.speedometers) {
@@ -240,28 +224,15 @@ class SpeedometerHandler {
 		}
 	}
 
-	updateZoneSpeedometers(
-		absSpeed: float,
-		horizSpeed: float,
-		hasComparison = true,
-		absCustomdiff?: number,
-		horizCustomdiff?: number
-	) {
+	// Display the given 3D speed on all zone-velocity speedometers. The absolute 3D magnitude
+	// is shown regardless of each speedometer's enabled-axes setting, and no comparison diff
+	// is shown (the engine doesn't expose a per-zone comparison velocity here).
+	updateZoneSpeedometers(speed: float) {
 		const speedometers = this.speedometers.get(SpeedometerType.ZONE_VELOCITY);
 		if (!speedometers) return;
 
 		for (const speedometer of speedometers) {
-			// HACK: current runstats system only has abs and horiz speed, not the velocity vector
-			const enabledAxes = speedometer.settings.enabled_axes;
-			const isHoriz = enabledAxes[0] && enabledAxes[1] && !enabledAxes[2];
-
-			this.updateSpeedometer(
-				SpeedometerType.ZONE_VELOCITY,
-				speedometer,
-				isHoriz ? horizSpeed : absSpeed,
-				hasComparison,
-				isHoriz ? absCustomdiff : horizCustomdiff
-			);
+			this.updateSpeedometer(SpeedometerType.ZONE_VELOCITY, speedometer, speed, false);
 		}
 	}
 

@@ -319,6 +319,9 @@ interface GlobalEventNameMap {
 	/** Fired when the primary timer of the UI entity effectively starts a segment. */
 	OnObservedTimerSegmentEffectiveStart: () => void;
 
+	/** Fired when the primary timer of the UI entity changes style. */
+	OnObservedTimerStyleChanged: () => void;
+
 	/**
 	 * Fired when the primary timer of the observed entity changes arbitrarily, such as
 	 * when changing spectate targets or seeking during replay playback
@@ -364,6 +367,8 @@ interface GlobalEventNameMap {
 	MomAPI_Authenticated: (result: MomentumAPI.AuthenicationResult) => void;
 
 	ActiveZoneDefsChanged: () => void;
+
+	OnZoneDefsSet: (newDefs: import('common/web/types/models/models').MapZones) => void;
 
 	/** Fired after updating the map cache with the latest map lobby player counts. */
 	MapEntry_MapLobbiesUpdated: (playerCount: number) => void;

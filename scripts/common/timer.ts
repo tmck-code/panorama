@@ -1,3 +1,4 @@
+import { Style } from 'common/web/enums/style.enum';
 type Gamemode = import('./web/enums/gamemode.enum').Gamemode;
 
 //#region Types
@@ -21,6 +22,7 @@ export interface TimerStatus {
 	runTimeTickstamp: int32;
 	majorNum: uint8;
 	minorNum: uint8;
+	style: Style;
 	segmentsCount: uint8;
 	segmentCheckpointsCount: uint8;
 }
@@ -247,15 +249,24 @@ export function getSplitName(
 ): string {
 	if (majorNum === 1 && minorNum === 1) return '';
 
-	// Single segment run (e.g. linear surf map): previous minorNum
+	// Single segment run (e.g. linear surf map): previous minorNum (or subsegment count if unordered)
 	// Note that splits.segments.length is viable here since only contains splits hit so far.
 	if (segmentsCount === 1) {
-		const [, prevMin] = findPreviousSubsegment(splits, majorNum, minorNum);
+		const [prevMaj, prevMin] = findPreviousSubsegment(splits, majorNum, minorNum);
+		const prevSegment = splits.segments[prevMaj - 1];
+		if (!prevSegment.checkpointsOrdered) {
+			// Use 1-based position in the subsegments array rather than minorNum, which may be non-sequential.
+			// When crossing a segment boundary (prevMaj !== majorNum), findPreviousSubsegment returns
+			// subsegments.length as prevMin (not a stored minorNum), so use it directly as the count.
+			if (prevMaj !== majorNum) return prevSegment.subsegments.length.toString();
+			const prevIdx = prevSegment.subsegments.findIndex((ss) => ss.minorNum === prevMin);
+			return (prevIdx + 1).toString();
+		}
 		return prevMin.toString();
 	}
 
 	// Multiple segments, multiple subsegments
-	// (e.g. RJ map with courses): "X-Y" for previous majorNum, previous minorNum
+	// (e.g. RJ map with courses): "X-Y" for previous majorNum, previous minorNum (or subsegment count if unordered)
 	if (segmentsCheckpointsCount > 1) {
 		// For these zones, we want:
 		//  S1----CP1----CP2----S2----CP1----CP2----END
@@ -265,6 +276,15 @@ export function getSplitName(
 		// Maj 2, Min 1 => 1-3      Maj 2, Min 2 => 2-1      Maj 2, Min 3 => 2-2
 		// END => 2-3
 		const [prevMaj, prevMin] = findPreviousSubsegment(splits, majorNum, minorNum);
+		const prevSegment = splits.segments[prevMaj - 1];
+		if (!prevSegment.checkpointsOrdered) {
+			// Use 1-based position in the subsegments array rather than minorNum, which may be non-sequential.
+			// When crossing a segment boundary (prevMaj !== majorNum), findPreviousSubsegment returns
+			// subsegments.length as prevMin (not a stored minorNum), so use it directly as the count.
+			if (prevMaj !== majorNum) return `${prevMaj}-${prevSegment.subsegments.length}`;
+			const prevIdx = prevSegment.subsegments.findIndex((ss) => ss.minorNum === prevMin);
+			return `${prevMaj}-${prevIdx + 1}`;
+		}
 		return `${prevMaj}-${prevMin}`;
 	}
 

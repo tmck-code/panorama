@@ -15,37 +15,65 @@
 		horizontal-align: center;
 	}
 
-	// Crouch glyph beside the speed number. Mirrors the keypress widget's idiom:
-	// dimmed when standing, lit when the player is ducked (toggled in code). The
-	// transition durations are tuned to the measured crouch animation timings (see
-	// updateDuckIndicator) so the icon's shrink tracks the player's actual crouch
-	// progress instead of snapping instantly: stand-up ~220ms (this base state's
-	// duration governs the transition away from --ducked), crouch-down ~420ms
-	// (the --ducked duration governs the transition into it).
+	// Three-dot crouch indicator beside the speed number: stand dot (left) lit while
+	// standing, full dot (right) lit once fully ducked, progress dot (middle) fades
+	// continuously between the two (driven per-frame in code) as the crouch plays out.
 	&__duck-icon {
-		width: 12px;
+		width: 22px;
 		height: 12px;
 		vertical-align: center;
 		margin-right: 4px;
-		transform: rotate(90deg) scale(1);
-		wash-color: $speedometer-color-default;
+		flow-children: right;
+		horizontal-align: center;
+	}
+
+	&__duck-dot {
+		width: 6px;
+		font-size: 8px;
+		margin-right: 2px;
+		vertical-align: center;
+		text-align: center;
+		color: $speedometer-color-default;
 		opacity: 0.15;
-		transition-property: opacity, wash-color, transform;
-		transition-duration: 0.22s;
+		transition-property: opacity, color;
 		transition-timing-function: ease-in-out;
 
-		&--ducked {
-			opacity: 1;
-			wash-color: $speedometer-color-increase;
-			transform: rotate(90deg) scale(0.65);
+		// The stand dot is lit while standing and dims as the player crouches down, so
+		// dimming should take the ~420ms crouch-down time and lighting back up the
+		// ~220ms stand-up time - the opposite pairing from the full dot below.
+		&--stand {
 			transition-duration: 0.42s;
+			&.speedometer__duck-dot--lit {
+				transition-duration: 0.22s;
+			}
+		}
+
+		// The full dot lights up once fully ducked (~420ms) and dims as the player
+		// stands back up (~220ms).
+		&--full {
+			transition-duration: 0.22s;
+			&.speedometer__duck-dot--lit {
+				transition-duration: 0.42s;
+			}
+		}
+
+		&--progress {
+			margin-right: 0;
+			// Opacity is set directly per-frame in code (a continuous 0-1 gradient), so
+			// no transition here - it would fight the manual interpolation.
+			transition-property: none;
+		}
+
+		&--lit {
+			opacity: 1;
+			color: $speedometer-color-increase;
 		}
 	}
 
 	// Balances the width of __duck-icon on the opposite side of the label, so the
 	// label itself stays horizontally centered whether or not the icon is shown.
 	&__duck-icon-spacer {
-		width: 16px;
+		width: 26px;
 	}
 
 	&__yawspeed {

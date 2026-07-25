@@ -19,7 +19,12 @@ const EVENT_LABEL_CLASS = 'speedometer__event';
 const EVENT_COMPLABEL_CLASS = 'speedometer__event__comparison';
 const EVENT_MERGED_CLASS = 'speedometer--merged';
 const SPEEDOMETER_ROW_CLASS = 'speedometer-row';
-const DUCKED_CLASS = 'speedometer__duck-icon--ducked';
+const DUCK_DOT_LIT_CLASS = 'speedometer__duck-dot--lit';
+
+// Measured via edge-triggered console logging (duckpressed -> IsDucking delay): the crouch
+// animation takes ~420ms to go down and ~220ms to stand back up.
+const DUCK_DOWN_DURATION_MS = 420;
+const DUCK_UP_DURATION_MS = 220;
 
 interface Range {
 	min: number;
@@ -37,6 +42,9 @@ class Speedometer {
 	yawSpeedLabel: Label;
 	duckIcon: Panel;
 	duckIconSpacer: Panel;
+	duckStandDot: Label;
+	duckProgressDot: Label;
+	duckFullDot: Label;
 	settings: RuntimeSettings;
 	prevVal: number;
 	fadeoutEventHandle: number;
@@ -49,6 +57,9 @@ class Speedometer {
 		this.yawSpeedLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerYawSpeedLabel');
 		this.duckIcon = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckIcon');
 		this.duckIconSpacer = speedometerPanel.FindChildInLayoutFile('SpeedometerIconSpacer');
+		this.duckStandDot = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckStandDot');
+		this.duckProgressDot = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckProgressDot');
+		this.duckFullDot = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckFullDot');
 		this.settings = settings;
 		this.prevVal = 0;
 
@@ -87,6 +98,16 @@ class SpeedometerHandler {
 	container = $<Panel>('#SpeedometersContainer');
 	correctedColorizeDeadzone = 0;
 	prevTimerState: TimerState = TimerState.DISABLED;
+
+	// Drives the middle "in progress" dot: interpolated 0 (standing) -> 1 (fully ducked) over
+	// real time, using the measured crouch/stand durations, so it reads as a smooth gradient
+	// through the transition rather than a binary flip.
+	duckKeyPressed = false;
+	duckProgress = 0;
+	duckAnimStartProgress = 0;
+	duckAnimStartTime = 0;
+	duckAnimTargetProgress = 0;
+	duckAnimDurationMs = 0;
 
 	speedometers: Map<SpeedometerType, Array<Speedometer>> = new Map();
 
@@ -162,13 +183,11 @@ class SpeedometerHandler {
 		this.updateDuckIndicator();
 	}
 
-	// Lights the crouch glyph while the player is ducking. The duck key is bound (in
-	// autoexec.cfg) to flip the `duckpressed` userinfo convar, giving an immediate
-	// key-press signal; OR'd with the (delayed) crouch state so it still works without
-	// the cfg and stays lit through the stand-up transition. The class's transition
-	// duration is tuned (see speedometer.scss) to match the measured ~420ms crouch-down /
-	// ~220ms stand-up animation time, so the icon visualises the crouch progressing rather
-	// than snapping instantly.
+	// Three-dot crouch indicator: left dot lit while standing, right dot lit once fully
+	// ducked, middle dot fades in/out continuously as the crouch animation plays. The duck
+	// key is bound (in autoexec.cfg) to flip the `duckpressed` userinfo convar, giving an
+	// immediate key-press signal; OR'd with the (delayed) crouch state so it still works
+	// without the cfg and stays lit through the stand-up transition.
 	updateDuckIndicator() {
 		const speedometers = this.speedometers.get(SpeedometerType.OVERALL_VELOCITY);
 		if (!speedometers) return;
@@ -176,8 +195,23 @@ class SpeedometerHandler {
 		const keyPressed = GameInterfaceAPI.GetSettingInt('duckpressed') === 1;
 		const ducking = keyPressed || MomentumPlayerAPI.IsDucking();
 
+		const now = Date.now();
+		if (ducking !== this.duckKeyPressed) {
+			this.duckKeyPressed = ducking;
+			this.duckAnimStartProgress = this.duckProgress;
+			this.duckAnimStartTime = now;
+			this.duckAnimTargetProgress = ducking ? 1 : 0;
+			this.duckAnimDurationMs = ducking ? DUCK_DOWN_DURATION_MS : DUCK_UP_DURATION_MS;
+		}
+
+		const elapsedMs = now - this.duckAnimStartTime;
+		const t = this.duckAnimDurationMs > 0 ? Math.min(1, elapsedMs / this.duckAnimDurationMs) : 1;
+		this.duckProgress = this.duckAnimStartProgress + (this.duckAnimTargetProgress - this.duckAnimStartProgress) * t;
+
 		for (const speedometer of speedometers) {
-			speedometer.duckIcon.SetHasClass(DUCKED_CLASS, ducking);
+			speedometer.duckStandDot.SetHasClass(DUCK_DOT_LIT_CLASS, !ducking);
+			speedometer.duckFullDot.SetHasClass(DUCK_DOT_LIT_CLASS, ducking);
+			speedometer.duckProgressDot.style.opacity = (0.15 + this.duckProgress * 0.85).toString();
 		}
 	}
 

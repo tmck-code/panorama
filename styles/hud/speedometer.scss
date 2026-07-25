@@ -18,10 +18,11 @@
 	// Crouch glyph beside the speed number. Mirrors the keypress widget's idiom:
 	// dimmed when standing, lit when the player is ducked (toggled in code).
 	&__duck-icon {
-		width: 22px;
-		height: 22px;
+		width: 12px;
+		height: 12px;
 		vertical-align: center;
-		margin-right: 6px;
+		margin-right: 4px;
+		transform: rotate(90deg);
 		wash-color: $speedometer-color-default;
 		opacity: 0.15;
 		transition-property: opacity, wash-color;
@@ -32,6 +33,12 @@
 			opacity: 1;
 			wash-color: $speedometer-color-increase;
 		}
+	}
+
+	// Balances the width of __duck-icon on the opposite side of the label, so the
+	// label itself stays horizontally centered whether or not the icon is shown.
+	&__duck-icon-spacer {
+		width: 16px;
 	}
 
 	&__yawspeed {
@@ -45,7 +52,7 @@
 	&__axis {
 		font-weight: $speedometer-axis-font-weight;
 		font-size: $speedometer-axis-font-size;
-		color: $speedometer-color-default
+		color: $speedometer-color-default;
 		&__comparison {
 			font-weight: $speedometer-axis-comparison-font-weight;
 			font-size: $speedometer-axis-comparison-font-size;
@@ -79,4 +86,17 @@
 		transition-duration: 0s;
 		opacity: 0;
 	}
+	// Applied to a speedometer that's been laid out beside another one (e.g. zone
+	// start velocity beside jump speed) instead of stacked below it on its own line.
+	&--merged {
+		margin-left: 8px;
+	}
+}
+
+// Wraps two speedometer panels that should sit side by side on the same line
+// instead of each getting their own row. Each child still owns its own
+// fade/visibility state; only their layout is shared.
+.speedometer-row {
+	align: center center;
+	flow-children: right;
 }

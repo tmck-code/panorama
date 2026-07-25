@@ -12,8 +12,9 @@
 			<Panel class="v-align-center h-align-center">
 				<Panel id="SpeedometerContainer" class="speedometer">
 					<Panel class="speedometer__main">
-						<Image id="SpeedometerDuckIcon" class="speedometer__duck-icon" src="file://{images}/mom-arrow-down.svg" textureheight="24" />
+						<Image id="SpeedometerDuckIcon" class="speedometer__duck-icon" src="file://{images}/chevron.svg" textureheight="24" />
 						<Label id="SpeedometerLabel" text="" class="text-align-center" />
+						<Panel id="SpeedometerIconSpacer" class="speedometer__duck-icon-spacer" />
 						<Label id="SpeedometerComparisonLabel" text="" />
 					</Panel>
 					<Label id="SpeedometerYawSpeedLabel" text="" class="speedometer__yawspeed text-align-center" />

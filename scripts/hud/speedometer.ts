@@ -17,6 +17,8 @@ const AXIS_LABEL_CLASS = 'speedometer__axis';
 const AXIS_COMPLABEL_CLASS = 'speedometer__axis__comparison';
 const EVENT_LABEL_CLASS = 'speedometer__event';
 const EVENT_COMPLABEL_CLASS = 'speedometer__event__comparison';
+const EVENT_MERGED_CLASS = 'speedometer--merged';
+const SPEEDOMETER_ROW_CLASS = 'speedometer-row';
 const DUCKED_CLASS = 'speedometer__duck-icon--ducked';
 
 interface Range {
@@ -34,6 +36,7 @@ class Speedometer {
 	comparisonLabel: Label;
 	yawSpeedLabel: Label;
 	duckIcon: Panel;
+	duckIconSpacer: Panel;
 	settings: RuntimeSettings;
 	prevVal: number;
 	fadeoutEventHandle: number;
@@ -45,13 +48,16 @@ class Speedometer {
 		this.comparisonLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerComparisonLabel');
 		this.yawSpeedLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerYawSpeedLabel');
 		this.duckIcon = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckIcon');
+		this.duckIconSpacer = speedometerPanel.FindChildInLayoutFile('SpeedometerIconSpacer');
 		this.settings = settings;
 		this.prevVal = 0;
 
 		// The duck indicator only tracks the player's actual crouch state, which is
 		// only meaningful on the live overall-velocity readout (not event speedos).
+		// The spacer balances the icon's width so the label stays centered either way.
 		if (this.type !== SpeedometerType.OVERALL_VELOCITY) {
 			this.duckIcon.AddClass(HIDDEN_CLASS);
+			this.duckIconSpacer.AddClass(HIDDEN_CLASS);
 		}
 
 		this.speedometerLabel.AddClass(
@@ -386,6 +392,19 @@ class SpeedometerHandler {
 			const speedometersArray = this.speedometers.get(speedoType) ?? [];
 			speedometersArray.push(speedoObject);
 			this.speedometers.set(speedoType, speedometersArray);
+		}
+
+		// Lay the zone-start-velocity readout out beside the jump-speed readout's row, so the
+		// starting velocity appears next to the jump speed number instead of on its own line.
+		// Each keeps its own fade/visibility state (they appear at different times: jump speed
+		// on jumping, zone velocity only once the timer starts), only their position is shared.
+		const [jumpSpeedometer] = this.speedometers.get(SpeedometerType.JUMP_VELOCITY) ?? [];
+		const [zoneSpeedometer] = this.speedometers.get(SpeedometerType.ZONE_VELOCITY) ?? [];
+		if (jumpSpeedometer && zoneSpeedometer) {
+			const row = jumpSpeedometer.speedometerPanel.GetParent();
+			row.AddClass(SPEEDOMETER_ROW_CLASS);
+			zoneSpeedometer.speedometerPanel.AddClass(EVENT_MERGED_CLASS);
+			zoneSpeedometer.speedometerPanel.SetParent(row);
 		}
 
 		this.registerFadeoutEventHandlers();

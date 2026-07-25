@@ -42,9 +42,9 @@ class Speedometer {
 	yawSpeedLabel: Label;
 	duckIcon: Panel;
 	duckIconSpacer: Panel;
-	duckStandDot: Label;
-	duckProgressDot: Label;
-	duckFullDot: Label;
+	duckStandDot: Panel;
+	duckProgressDot: Panel;
+	duckFullDot: Panel;
 	settings: RuntimeSettings;
 	prevVal: number;
 	fadeoutEventHandle: number;

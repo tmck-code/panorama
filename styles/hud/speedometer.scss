@@ -29,13 +29,13 @@
 
 	&__duck-dot {
 		width: 6px;
-		font-size: 8px;
+		height: 6px;
 		margin-right: 2px;
 		vertical-align: center;
-		text-align: center;
-		color: $speedometer-color-default;
+		border-radius: 3px;
+		background-color: $speedometer-color-default;
 		opacity: 0.15;
-		transition-property: opacity, color;
+		transition-property: opacity, background-color;
 		transition-timing-function: ease-in-out;
 
 		// The stand dot is lit while standing and dims as the player crouches down, so
@@ -59,6 +59,7 @@
 
 		&--progress {
 			margin-right: 0;
+			background-color: $speedometer-color-increase;
 			// Opacity is set directly per-frame in code (a continuous 0-1 gradient), so
 			// no transition here - it would fight the manual interpolation.
 			transition-property: none;
@@ -66,7 +67,7 @@
 
 		&--lit {
 			opacity: 1;
-			color: $speedometer-color-increase;
+			background-color: $speedometer-color-increase;
 		}
 	}
 

@@ -12,10 +12,26 @@
 			<Panel class="v-align-center h-align-center">
 				<Panel id="SpeedometerContainer" class="speedometer">
 					<Panel class="speedometer__main">
+						<!-- Four interchangeable crouch-indicator variants, selected live by the
+						     `duckstyle` convar (see autoexec.cfg). All four are laid out at the same
+						     total width so switching between them never shifts the speed label. -->
 						<Panel id="SpeedometerDuckIcon" class="speedometer__duck-icon">
-							<Panel id="SpeedometerDuckStandDot" class="speedometer__duck-dot speedometer__duck-dot--stand" />
-							<Panel id="SpeedometerDuckProgressDot" class="speedometer__duck-dot speedometer__duck-dot--progress" />
-							<Panel id="SpeedometerDuckFullDot" class="speedometer__duck-dot speedometer__duck-dot--full" />
+							<Panel id="SpeedometerDuckPips" class="speedometer__duck-variant speedometer__duck-pips">
+								<Panel id="SpeedometerDuckStandDot" class="speedometer__duck-dot speedometer__duck-dot--stand" />
+								<Panel id="SpeedometerDuckProgressDot" class="speedometer__duck-dot speedometer__duck-dot--progress" />
+								<Panel id="SpeedometerDuckFullDot" class="speedometer__duck-dot speedometer__duck-dot--full" />
+							</Panel>
+							<Panel id="SpeedometerDuckBar" class="speedometer__duck-variant speedometer__duck-bar">
+								<Panel id="SpeedometerDuckBarFill" class="speedometer__duck-bar-fill" />
+							</Panel>
+							<Panel id="SpeedometerDuckChevron" class="speedometer__duck-variant speedometer__duck-chevron">
+								<Panel id="SpeedometerDuckChevronArrow" class="speedometer__duck-chevron-arrow" />
+							</Panel>
+							<Panel id="SpeedometerDuckGauge" class="speedometer__duck-variant speedometer__duck-gauge">
+								<Panel id="SpeedometerDuckGaugeTrack" class="speedometer__duck-gauge-track">
+									<Panel id="SpeedometerDuckGaugeFill" class="speedometer__duck-gauge-fill" />
+								</Panel>
+							</Panel>
 						</Panel>
 						<Label id="SpeedometerLabel" text="" class="text-align-center" />
 						<Panel id="SpeedometerIconSpacer" class="speedometer__duck-icon-spacer" />

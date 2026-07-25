@@ -15,16 +15,28 @@
 		horizontal-align: center;
 	}
 
-	// Three-dot crouch indicator beside the speed number: stand dot (left) lit while
-	// standing, full dot (right) lit once fully ducked, progress dot (middle) fades
-	// continuously between the two (driven per-frame in code) as the crouch plays out.
+	// Crouch indicator beside the speed number. Holds all four variants stacked in the
+	// same box (only one is visible at a time, chosen by the `duckstyle` convar), so the
+	// icon occupies a fixed 22px regardless of which variant is active.
 	&__duck-icon {
 		width: 22px;
 		height: 12px;
 		vertical-align: center;
 		margin-right: 4px;
-		flow-children: right;
 		horizontal-align: center;
+	}
+
+	// Common frame for each variant: every one fills the icon box so the label never
+	// shifts when switching, and each centers its own (much narrower) artwork.
+	&__duck-variant {
+		width: 22px;
+		height: 12px;
+		vertical-align: center;
+		horizontal-align: center;
+	}
+
+	&__duck-pips {
+		flow-children: right;
 	}
 
 	&__duck-dot {
@@ -69,6 +81,53 @@
 			opacity: 1;
 			background-color: $speedometer-color-increase;
 		}
+	}
+
+	// Variant 1 (bar): a single silhouette that shrinks as the player crouches. Height
+	// and colour are both driven per-frame in code, so no transitions here.
+	&__duck-bar-fill {
+		width: 5px;
+		height: 12px;
+		horizontal-align: center;
+		vertical-align: bottom;
+		// Matches the standing end of the code-driven white -> green ramp, so the first
+		// frame (and any static preview) doesn't flash the wrong colour.
+		background-color: white;
+		transition-property: none;
+	}
+
+	// Variant 2 (chevron): a font-free arrowhead built from two borders on an empty
+	// panel (the HUD font lacks the arrow glyphs). Rotating it 225deg -> 45deg swings
+	// it from pointing up to pointing down, so the rotation itself IS the progress
+	// readout - there's no separate progress element.
+	&__duck-chevron-arrow {
+		width: 7px;
+		height: 7px;
+		horizontal-align: center;
+		vertical-align: center;
+		border-right: 2px solid $speedometer-color-default;
+		border-bottom: 2px solid $speedometer-color-default;
+		transform: rotateZ(225deg);
+		transition-property: none;
+	}
+
+	// Variant 3 (gauge): a dim vertical track that fills from the bottom up. Only the
+	// fill's height is animated in code; the fill colour is constant.
+	&__duck-gauge-track {
+		width: 3px;
+		height: 12px;
+		horizontal-align: center;
+		vertical-align: center;
+		// Dim via alpha rather than `opacity`, which would also wash out the fill child.
+		background-color: rgba($speedometer-color-default, 0.2);
+	}
+
+	&__duck-gauge-fill {
+		width: 100%;
+		height: 0%;
+		vertical-align: bottom;
+		background-color: $speedometer-color-increase;
+		transition-property: none;
 	}
 
 	// Balances the width of __duck-icon on the opposite side of the label, so the

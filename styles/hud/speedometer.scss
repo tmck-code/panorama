@@ -16,22 +16,29 @@
 	}
 
 	// Crouch glyph beside the speed number. Mirrors the keypress widget's idiom:
-	// dimmed when standing, lit when the player is ducked (toggled in code).
+	// dimmed when standing, lit when the player is ducked (toggled in code). The
+	// transition durations are tuned to the measured crouch animation timings (see
+	// updateDuckIndicator) so the icon's shrink tracks the player's actual crouch
+	// progress instead of snapping instantly: stand-up ~220ms (this base state's
+	// duration governs the transition away from --ducked), crouch-down ~420ms
+	// (the --ducked duration governs the transition into it).
 	&__duck-icon {
 		width: 12px;
 		height: 12px;
 		vertical-align: center;
 		margin-right: 4px;
-		transform: rotate(90deg);
+		transform: rotate(90deg) scale(1);
 		wash-color: $speedometer-color-default;
 		opacity: 0.15;
-		transition-property: opacity, wash-color;
-		transition-duration: 0.05s;
+		transition-property: opacity, wash-color, transform;
+		transition-duration: 0.22s;
 		transition-timing-function: ease-in-out;
 
 		&--ducked {
 			opacity: 1;
 			wash-color: $speedometer-color-increase;
+			transform: rotate(90deg) scale(0.65);
+			transition-duration: 0.42s;
 		}
 	}
 

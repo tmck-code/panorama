@@ -165,7 +165,10 @@ class SpeedometerHandler {
 	// Lights the crouch glyph while the player is ducking. The duck key is bound (in
 	// autoexec.cfg) to flip the `duckpressed` userinfo convar, giving an immediate
 	// key-press signal; OR'd with the (delayed) crouch state so it still works without
-	// the cfg and stays lit through the stand-up transition.
+	// the cfg and stays lit through the stand-up transition. The class's transition
+	// duration is tuned (see speedometer.scss) to match the measured ~420ms crouch-down /
+	// ~220ms stand-up animation time, so the icon visualises the crouch progressing rather
+	// than snapping instantly.
 	updateDuckIndicator() {
 		const speedometers = this.speedometers.get(SpeedometerType.OVERALL_VELOCITY);
 		if (!speedometers) return;

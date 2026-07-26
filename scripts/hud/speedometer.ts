@@ -20,44 +20,25 @@ const EVENT_LABEL_CLASS = 'speedometer__event';
 const EVENT_COMPLABEL_CLASS = 'speedometer__event__comparison';
 const EVENT_MERGED_CLASS = 'speedometer--merged';
 const SPEEDOMETER_ROW_CLASS = 'speedometer-row';
-const DUCK_DOT_LIT_CLASS = 'speedometer__duck-dot--lit';
 
 // Measured via edge-triggered console logging (duckpressed -> IsDucking delay): the crouch
 // animation takes ~420ms to go down and ~220ms to stand back up.
 const DUCK_DOWN_DURATION_MS = 420;
 const DUCK_UP_DURATION_MS = 220;
 
-// Crouch-indicator variants, selected live by the `duckstyle` convar (see autoexec.cfg).
-// The order here is the convar's numeric value, so it must stay in sync with the
-// `incrementvar duckstyle 0 3 1` range that cycles them in-game.
-const enum DuckStyle {
-	PIPS = 0,
-	BAR = 1,
-	CHEVRON = 2,
-	GAUGE = 3
-}
-const DUCK_STYLE_COUNT = 4;
-
-// The bar/chevron variants lerp their colour per-frame rather than switching classes, and
-// SCSS vars aren't reachable from TS - so the endpoints are duplicated here. Yellow mirrors
-// `$speedometer-color-default` (#ffee00) and green mirrors `$speedometer-color-increase`
-// (#b3ff00); white has no SCSS counterpart, it's just the bar's neutral standing colour.
-const DUCK_COLOR_WHITE: RgbaTuple = [255, 255, 255, 255];
-const DUCK_COLOR_YELLOW: RgbaTuple = [255, 238, 0, 255];
+// The bar lerps its colour per-frame rather than switching classes, and SCSS vars aren't
+// reachable from TS - so the endpoints are duplicated here. Green mirrors
+// `$speedometer-color-increase` (#b3ff00); the standing endpoint is that same green at
+// zero alpha, so the bar fades in from invisible without drifting through grey.
 const DUCK_COLOR_GREEN: RgbaTuple = [179, 255, 0, 255];
+const DUCK_COLOR_GREEN_TRANSPARENT: RgbaTuple = [179, 255, 0, 0];
 
-// Per-variant colour ramps, standing -> fully crouched. The bar reads as a neutral
-// silhouette until the crouch is committed; the chevron keeps its original yellow ramp.
-const DUCK_BAR_RAMP: readonly [RgbaTuple, RgbaTuple] = [DUCK_COLOR_WHITE, DUCK_COLOR_GREEN];
-const DUCK_CHEVRON_RAMP: readonly [RgbaTuple, RgbaTuple] = [DUCK_COLOR_YELLOW, DUCK_COLOR_GREEN];
+// The bar's colour ramp, standing -> fully crouched.
+const DUCK_BAR_RAMP: readonly [RgbaTuple, RgbaTuple] = [DUCK_COLOR_GREEN_TRANSPARENT, DUCK_COLOR_GREEN];
 
-// The bar variant's silhouette height in px, standing -> fully crouched.
+// The bar's silhouette height in px, standing -> fully crouched.
 const DUCK_BAR_HEIGHT_STANDING = 12;
 const DUCK_BAR_HEIGHT_CROUCHED = 5;
-
-// The chevron variant's rotation in degrees, pointing up (standing) -> down (crouched).
-const DUCK_CHEVRON_ROTATION_STANDING = 225;
-const DUCK_CHEVRON_ROTATION_CROUCHED = 45;
 
 interface Range {
 	min: number;
@@ -75,15 +56,7 @@ class Speedometer {
 	yawSpeedLabel: Label;
 	duckIcon: Panel;
 	duckIconSpacer: Panel;
-	duckStandDot: Panel;
-	duckProgressDot: Panel;
-	duckFullDot: Panel;
-	// Root panel of each crouch-indicator variant, indexed by DuckStyle so the handler can
-	// show exactly one of them without a switch per frame.
-	duckVariants: Panel[];
 	duckBarFill: Panel;
-	duckChevronArrow: Panel;
-	duckGaugeFill: Panel;
 	settings: RuntimeSettings;
 	prevVal: number;
 	fadeoutEventHandle: number;
@@ -96,26 +69,9 @@ class Speedometer {
 		this.yawSpeedLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerYawSpeedLabel');
 		this.duckIcon = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckIcon');
 		this.duckIconSpacer = speedometerPanel.FindChildInLayoutFile('SpeedometerIconSpacer');
-		this.duckStandDot = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckStandDot');
-		this.duckProgressDot = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckProgressDot');
-		this.duckFullDot = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckFullDot');
-		this.duckVariants = [
-			speedometerPanel.FindChildInLayoutFile('SpeedometerDuckPips'),
-			speedometerPanel.FindChildInLayoutFile('SpeedometerDuckBar'),
-			speedometerPanel.FindChildInLayoutFile('SpeedometerDuckChevron'),
-			speedometerPanel.FindChildInLayoutFile('SpeedometerDuckGauge')
-		];
 		this.duckBarFill = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckBarFill');
-		this.duckChevronArrow = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckChevronArrow');
-		this.duckGaugeFill = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckGaugeFill');
 		this.settings = settings;
 		this.prevVal = 0;
-
-		// Start on the default variant; the handler swaps in the convar's choice on the
-		// first tick after these panels are built.
-		for (const [index, variant] of this.duckVariants.entries()) {
-			variant.SetHasClass(HIDDEN_CLASS, index !== DuckStyle.PIPS);
-		}
 
 		// The duck indicator only tracks the player's actual crouch state, which is
 		// only meaningful on the live overall-velocity readout (not event speedos).
@@ -152,9 +108,9 @@ class SpeedometerHandler {
 	container = $<Panel>('#SpeedometersContainer');
 	correctedColorizeDeadzone = 0;
 
-	// Drives the middle "in progress" dot: interpolated 0 (standing) -> 1 (fully ducked) over
-	// real time, using the measured crouch/stand durations, so it reads as a smooth gradient
-	// through the transition rather than a binary flip.
+	// Drives the bar: interpolated 0 (standing) -> 1 (fully ducked) over real time, using the
+	// measured crouch/stand durations, so it reads as a smooth gradient through the
+	// transition rather than a binary flip.
 	duckKeyPressed = false;
 	duckKeyBindingSeen = false;
 	duckProgress = 0;
@@ -162,10 +118,6 @@ class SpeedometerHandler {
 	duckAnimStartTime = 0;
 	duckAnimTargetProgress = 0;
 	duckAnimDurationMs = 0;
-
-	// Last `duckstyle` value we applied show/hide classes for. Starts invalid so the first
-	// tick (and every rebuild of the speedometer panels) reapplies them.
-	duckStyle: DuckStyle | -1 = -1;
 
 	speedometers: Map<SpeedometerType, Array<Speedometer>> = new Map();
 
@@ -244,10 +196,11 @@ class SpeedometerHandler {
 		this.updateDuckIndicator();
 	}
 
-	// Crouch indicator, drawn in one of four interchangeable styles (see DuckStyle). The duck
-	// key is bound (in autoexec.cfg) to flip the `duckpressed` userinfo convar, giving an
-	// immediate key signal on BOTH edges - unlike IsDucking(), which stays true for the whole
-	// stand-up animation and so would make the uncrouch visibly lag the player model.
+	// Crouch indicator: a silhouette bar that shortens and fades in from transparent as the
+	// player crouches. The duck key is bound (in autoexec.cfg) to flip the `duckpressed`
+	// userinfo convar, giving an immediate key signal on BOTH edges - unlike IsDucking(),
+	// which stays true for the whole stand-up animation and so would make the uncrouch
+	// visibly lag the player model.
 	// `duckpressed` reads 0 both when the convar is missing and when the key is up, so we
 	// can't probe for it directly; instead we latch the first time we see it at 1 and from
 	// then on trust it alone. Until then (and forever, for users without the cfg) we fall
@@ -273,66 +226,16 @@ class SpeedometerHandler {
 		const t = this.duckAnimDurationMs > 0 ? Math.min(1, elapsedMs / this.duckAnimDurationMs) : 1;
 		this.duckProgress = this.duckAnimStartProgress + (this.duckAnimTargetProgress - this.duckAnimStartProgress) * t;
 
-		// Polled rather than listened to (this already runs every tick), but the show/hide
-		// classes are only reapplied when the selection actually changes.
-		const style = this.readDuckStyle();
-		const styleChanged = style !== this.duckStyle;
-		this.duckStyle = style;
-
 		for (const speedometer of speedometers) {
-			if (styleChanged) {
-				for (const [index, variant] of speedometer.duckVariants.entries()) {
-					variant.SetHasClass(HIDDEN_CLASS, index !== style);
-				}
-			}
-
-			// Only the visible variant is worth updating; the hidden ones are re-synced on
-			// the tick they're switched back in.
-			switch (style) {
-				case DuckStyle.PIPS: {
-					speedometer.duckStandDot.SetHasClass(DUCK_DOT_LIT_CLASS, !ducking);
-					speedometer.duckFullDot.SetHasClass(DUCK_DOT_LIT_CLASS, ducking);
-					speedometer.duckProgressDot.style.opacity = (0.15 + this.duckProgress * 0.85).toString();
-					break;
-				}
-				case DuckStyle.BAR: {
-					const height =
-						DUCK_BAR_HEIGHT_STANDING -
-						this.duckProgress * (DUCK_BAR_HEIGHT_STANDING - DUCK_BAR_HEIGHT_CROUCHED);
-					speedometer.duckBarFill.style.height = `${height}px`;
-					speedometer.duckBarFill.style.backgroundColor = this.duckProgressColor(DUCK_BAR_RAMP);
-					break;
-				}
-				case DuckStyle.CHEVRON: {
-					const rotation =
-						DUCK_CHEVRON_ROTATION_STANDING -
-						this.duckProgress * (DUCK_CHEVRON_ROTATION_STANDING - DUCK_CHEVRON_ROTATION_CROUCHED);
-					const color = this.duckProgressColor(DUCK_CHEVRON_RAMP);
-					speedometer.duckChevronArrow.style.transform = `rotateZ(${rotation}deg)`;
-					// Only the two borders that form the arrowhead are set in SCSS, so both
-					// need recolouring - there's no single colour property to drive here.
-					speedometer.duckChevronArrow.style.borderRightColor = color;
-					speedometer.duckChevronArrow.style.borderBottomColor = color;
-					break;
-				}
-				case DuckStyle.GAUGE: {
-					speedometer.duckGaugeFill.style.height = `${this.duckProgress * 100}%`;
-					break;
-				}
-			}
+			const height =
+				DUCK_BAR_HEIGHT_STANDING - this.duckProgress * (DUCK_BAR_HEIGHT_STANDING - DUCK_BAR_HEIGHT_CROUCHED);
+			speedometer.duckBarFill.style.height = `${height}px`;
+			speedometer.duckBarFill.style.backgroundColor = this.duckProgressColor(DUCK_BAR_RAMP);
 		}
 	}
 
-	// Guards a missing or out-of-range convar back to the default variant, since setinfo
-	// values are user-editable and `incrementvar` bounds aren't enforced on manual sets.
-	readDuckStyle(): DuckStyle {
-		const value = GameInterfaceAPI.GetSettingInt('duckstyle');
-		if (!Number.isInteger(value) || value < 0 || value >= DUCK_STYLE_COUNT) return DuckStyle.PIPS;
-		return value as DuckStyle;
-	}
-
-	// Colour for the variants that morph a single element, lerped straight from duckProgress.
-	// The ramp is passed in because each variant has its own standing/crouched endpoints.
+	// Bar colour, lerped straight from duckProgress across the ramp's standing/crouched
+	// endpoints (alpha included, so the bar fades in as the crouch commits).
 	duckProgressColor([standing, crouched]: readonly [RgbaTuple, RgbaTuple]): string {
 		const lerped = standing.map((channel, index) =>
 			Math.round(channel + (crouched[index] - channel) * this.duckProgress)
@@ -537,9 +440,6 @@ class SpeedometerHandler {
 
 		this.unregisterFadeoutEventHandlers();
 		this.container.RemoveAndDeleteChildren();
-
-		// Panels are rebuilt below, so the cached duck style no longer describes them.
-		this.duckStyle = -1;
 
 		this.speedometers = new Map();
 		for (const speedo of settings) {

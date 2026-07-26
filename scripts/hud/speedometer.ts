@@ -156,6 +156,7 @@ class SpeedometerHandler {
 	// real time, using the measured crouch/stand durations, so it reads as a smooth gradient
 	// through the transition rather than a binary flip.
 	duckKeyPressed = false;
+	duckKeyBindingSeen = false;
 	duckProgress = 0;
 	duckAnimStartProgress = 0;
 	duckAnimStartTime = 0;
@@ -245,14 +246,19 @@ class SpeedometerHandler {
 
 	// Crouch indicator, drawn in one of four interchangeable styles (see DuckStyle). The duck
 	// key is bound (in autoexec.cfg) to flip the `duckpressed` userinfo convar, giving an
-	// immediate key-press signal; OR'd with the (delayed) crouch state so it still works
-	// without the cfg and stays lit through the stand-up transition.
+	// immediate key signal on BOTH edges - unlike IsDucking(), which stays true for the whole
+	// stand-up animation and so would make the uncrouch visibly lag the player model.
+	// `duckpressed` reads 0 both when the convar is missing and when the key is up, so we
+	// can't probe for it directly; instead we latch the first time we see it at 1 and from
+	// then on trust it alone. Until then (and forever, for users without the cfg) we fall
+	// back to the delayed crouch state.
 	updateDuckIndicator() {
 		const speedometers = this.speedometers.get(SpeedometerType.OVERALL_VELOCITY);
 		if (!speedometers) return;
 
 		const keyPressed = GameInterfaceAPI.GetSettingInt('duckpressed') === 1;
-		const ducking = keyPressed || MomentumPlayerAPI.IsDucking();
+		if (keyPressed) this.duckKeyBindingSeen = true;
+		const ducking = this.duckKeyBindingSeen ? keyPressed : MomentumPlayerAPI.IsDucking();
 
 		const now = Date.now();
 		if (ducking !== this.duckKeyPressed) {

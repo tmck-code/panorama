@@ -1,4 +1,5 @@
 import { PanelHandler } from 'util/module-helpers';
+import { magnitude } from 'util/math';
 import { RgbaTuple, tupleToRgbaString } from 'util/colors';
 import { SpeedometerColorType, SpeedometerType } from 'common/speedometer';
 import { TimerState } from 'common/timer';
@@ -150,7 +151,6 @@ class Speedometer {
 class SpeedometerHandler {
 	container = $<Panel>('#SpeedometersContainer');
 	correctedColorizeDeadzone = 0;
-	prevTimerState: TimerState = TimerState.DISABLED;
 
 	// Drives the middle "in progress" dot: interpolated 0 (standing) -> 1 (fully ducked) over
 	// real time, using the measured crouch/stand durations, so it reads as a smooth gradient
@@ -185,8 +185,11 @@ class SpeedometerHandler {
 			this.onSpeedometerUpdate(deltaTime)
 		);
 
-		// Zone-velocity speedometer: capture the player's speed the instant the run timer
-		// starts (transitions into RUNNING).
+		// Zone-velocity speedometer: capture the player's speed at the start of every segment.
+		// This fires once per segment/stage, unlike the timer state which only changes at the
+		// start and end of the whole run (so it stayed on stage 1's value on staged maps).
+		$.RegisterForUnhandledEvent('OnObservedTimerSegmentEffectiveStart', () => this.onSegmentEffectiveStart());
+		// Still needed purely to clear a stale readout when the run isn't going.
 		$.RegisterForUnhandledEvent('OnObservedTimerStateChange', () => this.onTimerStateChange());
 
 		// color profiles load before speedo settings, so listening to just the speedo settings load event should be enough
@@ -331,20 +334,21 @@ class SpeedometerHandler {
 		return tupleToRgbaString(lerped);
 	}
 
-	// Capture the player's speed the moment the timer starts running, and reset the readout
-	// whenever the run isn't actively going so a stale number doesn't linger.
+	// Capture the player's speed at the start of each segment (stage/major checkpoint). The
+	// segment itself records an effectiveStartVelocity, but that field doesn't come through the
+	// splits serialisation as the `{x, y, z}` vec3 the typings promise, so sample the live
+	// velocity instead - this event fires at the segment start, so it's the same moment.
+	onSegmentEffectiveStart() {
+		this.updateZoneSpeedometers(magnitude(MomentumPlayerAPI.GetVelocity()));
+	}
+
+	// Reset the readout whenever the run isn't actively going so a stale number doesn't linger.
 	onTimerStateChange() {
 		const { state } = MomentumTimerAPI.GetObservedTimerStatus();
 
-		if (state === TimerState.RUNNING && this.prevTimerState !== TimerState.RUNNING) {
-			const v = MomentumPlayerAPI.GetVelocity();
-			const speed = Math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2);
-			this.updateZoneSpeedometers(speed);
-		} else if (state === TimerState.DISABLED || state === TimerState.PRIMED) {
+		if (state === TimerState.DISABLED || state === TimerState.PRIMED) {
 			this.resetSpeedometerFadeouts();
 		}
-
-		this.prevTimerState = state;
 	}
 
 	resetSpeedometerFadeouts() {

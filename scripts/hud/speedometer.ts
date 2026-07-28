@@ -13,6 +13,7 @@ const INCREASE_CLASS = 'speedometer--increase';
 const DECREASE_CLASS = 'speedometer--decrease';
 const FADEOUT_CLASS = 'speedometer--fadeout';
 const FADEOUT_START_CLASS = 'speedometer--fade-start';
+const FADEOUT_START_FAST_CLASS = 'speedometer--fade-start-fast';
 
 const AXIS_LABEL_CLASS = 'speedometer__axis';
 const AXIS_COMPLABEL_CLASS = 'speedometer__axis__comparison';
@@ -26,19 +27,19 @@ const SPEEDOMETER_ROW_CLASS = 'speedometer-row';
 const DUCK_DOWN_DURATION_MS = 420;
 const DUCK_UP_DURATION_MS = 220;
 
-// The bar lerps its colour per-frame rather than switching classes, and SCSS vars aren't
-// reachable from TS - so the endpoints are duplicated here. Green mirrors
-// `$speedometer-color-increase` (#b3ff00); the standing endpoint is that same green at
-// zero alpha, so the bar fades in from invisible without drifting through grey.
-const DUCK_COLOR_GREEN: RgbaTuple = [179, 255, 0, 255];
-const DUCK_COLOR_GREEN_TRANSPARENT: RgbaTuple = [179, 255, 0, 0];
+// Once the stand-up animation completes, keep the (now fully-standing) bar on screen this
+// long before hiding it, rather than disappearing the instant it reaches full height.
+const DUCK_HIDE_DELAY_MS = 200;
 
-// The bar's colour ramp, standing -> fully crouched.
-const DUCK_BAR_RAMP: readonly [RgbaTuple, RgbaTuple] = [DUCK_COLOR_GREEN_TRANSPARENT, DUCK_COLOR_GREEN];
+// The bar's colour ramp, standing -> fully crouched. SCSS vars aren't reachable from TS,
+// so these are duplicated here.
+const DUCK_COLOR_WHITE: RgbaTuple = [255, 255, 255, 255];
+const DUCK_COLOR_YELLOW: RgbaTuple = [255, 221, 0, 255];
+const DUCK_BAR_RAMP: readonly [RgbaTuple, RgbaTuple] = [DUCK_COLOR_WHITE, DUCK_COLOR_YELLOW];
 
 // The bar's silhouette height in px, standing -> fully crouched.
-const DUCK_BAR_HEIGHT_STANDING = 12;
-const DUCK_BAR_HEIGHT_CROUCHED = 5;
+const DUCK_BAR_HEIGHT_STANDING = 18;
+const DUCK_BAR_HEIGHT_CROUCHED = 7.5;
 
 interface Range {
 	min: number;
@@ -95,6 +96,7 @@ class Speedometer {
 
 		// remove status classes
 		this.speedometerPanel.RemoveClass(FADEOUT_START_CLASS);
+		this.speedometerPanel.RemoveClass(FADEOUT_START_FAST_CLASS);
 		this.speedometerPanel.RemoveClass(FADEOUT_CLASS);
 		this.speedometerLabel.RemoveClass(DECREASE_CLASS);
 		this.speedometerLabel.RemoveClass(INCREASE_CLASS);
@@ -108,16 +110,22 @@ class SpeedometerHandler {
 	container = $<Panel>('#SpeedometersContainer');
 	correctedColorizeDeadzone = 0;
 
+	duckKeyPressed = false;
+	duckKeyBindingSeen = false;
+
 	// Drives the bar: interpolated 0 (standing) -> 1 (fully ducked) over real time, using the
 	// measured crouch/stand durations, so it reads as a smooth gradient through the
 	// transition rather than a binary flip.
-	duckKeyPressed = false;
-	duckKeyBindingSeen = false;
 	duckProgress = 0;
 	duckAnimStartProgress = 0;
 	duckAnimStartTime = 0;
 	duckAnimTargetProgress = 0;
 	duckAnimDurationMs = 0;
+
+	// The bar is hidden by default and appears the instant the player starts crouching. Once
+	// they stand back up and the animation settles, it lingers briefly before hiding again.
+	duckBarVisible = false;
+	duckHideAt: number | undefined = undefined;
 
 	speedometers: Map<SpeedometerType, Array<Speedometer>> = new Map();
 
@@ -196,11 +204,11 @@ class SpeedometerHandler {
 		this.updateDuckIndicator();
 	}
 
-	// Crouch indicator: a silhouette bar that shortens and fades in from transparent as the
-	// player crouches. The duck key is bound (in autoexec.cfg) to flip the `duckpressed`
-	// userinfo convar, giving an immediate key signal on BOTH edges - unlike IsDucking(),
-	// which stays true for the whole stand-up animation and so would make the uncrouch
-	// visibly lag the player model.
+	// Crouch indicator: a silhouette bar that shrinks and changes colour as the player
+	// crouches, hidden while standing. The duck key is bound (in autoexec.cfg) to flip the
+	// `duckpressed` userinfo convar, giving an immediate key signal on BOTH edges - unlike
+	// IsDucking(), which stays true for the whole stand-up animation and so would make the
+	// uncrouch visibly lag the player model.
 	// `duckpressed` reads 0 both when the convar is missing and when the key is up, so we
 	// can't probe for it directly; instead we latch the first time we see it at 1 and from
 	// then on trust it alone. Until then (and forever, for users without the cfg) we fall
@@ -220,22 +228,42 @@ class SpeedometerHandler {
 			this.duckAnimStartTime = now;
 			this.duckAnimTargetProgress = ducking ? 1 : 0;
 			this.duckAnimDurationMs = ducking ? DUCK_DOWN_DURATION_MS : DUCK_UP_DURATION_MS;
+
+			// Appear immediately (at full standing size) the instant a crouch starts; cancel
+			// any pending hide from a previous stand-up.
+			if (ducking) {
+				this.duckBarVisible = true;
+				this.duckHideAt = undefined;
+			}
 		}
 
 		const elapsedMs = now - this.duckAnimStartTime;
 		const t = this.duckAnimDurationMs > 0 ? Math.min(1, elapsedMs / this.duckAnimDurationMs) : 1;
 		this.duckProgress = this.duckAnimStartProgress + (this.duckAnimTargetProgress - this.duckAnimStartProgress) * t;
 
+		// Once the stand-up animation has fully settled, start (or continue) the delay before
+		// hiding the bar.
+		if (!ducking && t >= 1) {
+			if (this.duckHideAt === undefined) this.duckHideAt = now + DUCK_HIDE_DELAY_MS;
+			if (this.duckBarVisible && now >= this.duckHideAt) {
+				this.duckBarVisible = false;
+				this.duckHideAt = undefined;
+			}
+		}
+
+		const height =
+			DUCK_BAR_HEIGHT_STANDING - this.duckProgress * (DUCK_BAR_HEIGHT_STANDING - DUCK_BAR_HEIGHT_CROUCHED);
+		const color = this.duckProgressColor(DUCK_BAR_RAMP);
+
 		for (const speedometer of speedometers) {
-			const height =
-				DUCK_BAR_HEIGHT_STANDING - this.duckProgress * (DUCK_BAR_HEIGHT_STANDING - DUCK_BAR_HEIGHT_CROUCHED);
 			speedometer.duckBarFill.style.height = `${height}px`;
-			speedometer.duckBarFill.style.backgroundColor = this.duckProgressColor(DUCK_BAR_RAMP);
+			speedometer.duckBarFill.style.backgroundColor = color;
+			speedometer.duckBarFill.SetHasClass(HIDDEN_CLASS, !this.duckBarVisible);
 		}
 	}
 
 	// Bar colour, lerped straight from duckProgress across the ramp's standing/crouched
-	// endpoints (alpha included, so the bar fades in as the crouch commits).
+	// endpoints.
 	duckProgressColor([standing, crouched]: readonly [RgbaTuple, RgbaTuple]): string {
 		const lerped = standing.map((channel, index) =>
 			Math.round(channel + (crouched[index] - channel) * this.duckProgress)
@@ -271,6 +299,7 @@ class SpeedometerHandler {
 	resetSpeedometerFadeout(speedometer: Speedometer) {
 		// forcibly fade out immediately
 		speedometer.speedometerPanel.RemoveClass(FADEOUT_START_CLASS);
+		speedometer.speedometerPanel.RemoveClass(FADEOUT_START_FAST_CLASS);
 		speedometer.speedometerPanel.TriggerClass(FADEOUT_CLASS);
 		speedometer.prevVal = 0;
 	}
@@ -383,7 +412,9 @@ class SpeedometerHandler {
 		speedometer.speedometerLabel.text = Math.round(speed);
 
 		if (this.canSpeedometerTypeFadeOut(type)) {
-			speedometer.speedometerPanel.AddClass(FADEOUT_START_CLASS);
+			speedometer.speedometerPanel.AddClass(
+				this.canSpeedometerTypeFadeOutFast(type) ? FADEOUT_START_FAST_CLASS : FADEOUT_START_CLASS
+			);
 			speedometer.speedometerPanel.TriggerClass(FADEOUT_CLASS);
 		}
 	}
@@ -391,6 +422,12 @@ class SpeedometerHandler {
 	// Overall velocity speedometers shouldn't fade out as they constantly update
 	canSpeedometerTypeFadeOut(type: SpeedometerType): boolean {
 		return type !== SpeedometerType.OVERALL_VELOCITY;
+	}
+
+	// Jump/start velocity are one-off readouts for a single jump/segment, so they should
+	// only stick around briefly rather than lingering like the other event speedometers.
+	canSpeedometerTypeFadeOutFast(type: SpeedometerType): boolean {
+		return type === SpeedometerType.JUMP_VELOCITY || type === SpeedometerType.ZONE_VELOCITY;
 	}
 
 	updateYawSpeedDisplay() {

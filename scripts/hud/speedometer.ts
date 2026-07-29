@@ -54,7 +54,6 @@ class Speedometer {
 	speedometerPanel: Panel;
 	speedometerLabel: Label;
 	comparisonLabel: Label;
-	yawSpeedLabel: Label;
 	duckIcon: Panel;
 	duckIconSpacer: Panel;
 	duckBarFill: Panel;
@@ -67,7 +66,6 @@ class Speedometer {
 		this.speedometerPanel = speedometerPanel;
 		this.speedometerLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerLabel');
 		this.comparisonLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerComparisonLabel');
-		this.yawSpeedLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerYawSpeedLabel');
 		this.duckIcon = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckIcon');
 		this.duckIconSpacer = speedometerPanel.FindChildInLayoutFile('SpeedometerIconSpacer');
 		this.duckBarFill = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckBarFill');
@@ -433,12 +431,7 @@ class SpeedometerHandler {
 	updateYawSpeedDisplay() {
 		const yawSpeed = GameInterfaceAPI.GetSettingFloat('cl_yawspeed');
 		const sensitivity = GameInterfaceAPI.GetSettingFloat('sensitivity');
-		const speedometers = this.speedometers.get(SpeedometerType.OVERALL_VELOCITY);
-		if (!speedometers) return;
-
-		for (const speedometer of speedometers) {
-			speedometer.yawSpeedLabel.text = `${yawSpeed.toFixed(0)} | ${sensitivity.toFixed(2)}`;
-		}
+		$.DispatchEvent('OnYawSpeedInfoUpdate', yawSpeed, sensitivity);
 	}
 
 	appendRangeColorProfileInfo(

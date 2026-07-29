@@ -3,6 +3,11 @@
 		<include src="file://{resources}/styles/main.scss" />
 	</styles>
 
+	<scripts>
+		<include type="module" src="file://{scripts}/util/event-definition.ts" />
+		<include type="module" src="file://{scripts}/hud/yaw-speed-info.ts" />
+	</scripts>
+
 	<Hud hittest="false">
 		<!-- Non-interactive HUD elements have hit test disabled for efficiency -->
 
@@ -47,6 +52,14 @@
 			<MomHudStrafeSync />
 			<MomHudGroundboost />
 			<HudHintText id="HudHintText" />
+		</Panel>
+
+		<!-- Yaw sensitivity / mouse sensitivity readout, anchored near the bottom of the
+		     screen, independent of however many overall-velocity speedometer rows are
+		     configured in HudBottomCenter above it -->
+		<Panel id="YawSpeedInfo" hittest="false" hittestchildren="false">
+			<Label id="SpeedometerYawSpeedLabel" text="" class="speedometer__yawspeed text-align-center" />
+			<Panel class="yaw-speed-info__bottom-spacer" />
 		</Panel>
 
 		<!-- Anchored to the bottom-left corner of the screen, laid out from top to bottom -->

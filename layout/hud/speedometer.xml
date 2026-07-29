@@ -21,7 +21,6 @@
 						<Panel id="SpeedometerIconSpacer" class="speedometer__duck-icon-spacer" />
 						<Label id="SpeedometerComparisonLabel" text="" />
 					</Panel>
-					<Label id="SpeedometerYawSpeedLabel" text="" class="speedometer__yawspeed text-align-center" />
 				</Panel>
 			</Panel>
 		</snippet>

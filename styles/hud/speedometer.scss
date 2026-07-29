@@ -49,9 +49,20 @@
 	&__yawspeed {
 		font-size: 8px;
 		font-weight: $speedometer-event-font-weight;
-		color: $green;
 		horizontal-align: center;
 		white-space: nowrap;
+
+		&__value {
+			color: $gray-900;
+		}
+
+		&__unit {
+			color: #a3a3a2;
+		}
+
+		&__separator {
+			color: $white;
+		}
 	}
 
 	&__axis {

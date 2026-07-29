@@ -16,6 +16,11 @@ class YawSpeedInfoHandler {
 	}
 
 	onYawSpeedInfoUpdate(yawSpeed: float, sensitivity: float) {
-		this.yawSpeedLabel.text = `${yawSpeed.toFixed(0)} | ${sensitivity.toFixed(2)}`;
+		this.yawSpeedLabel.text =
+			`<font class="speedometer__yawspeed__value">${yawSpeed.toFixed(0)}</font> ` +
+			'<font class="speedometer__yawspeed__unit">yaw</font>' +
+			'<font class="speedometer__yawspeed__separator"> | </font>' +
+			`<font class="speedometer__yawspeed__value">${sensitivity.toFixed(2)}</font> ` +
+			'<font class="speedometer__yawspeed__unit">sens</font>';
 	}
 }

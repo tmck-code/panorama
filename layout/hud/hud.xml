@@ -58,7 +58,7 @@
 		     screen, independent of however many overall-velocity speedometer rows are
 		     configured in HudBottomCenter above it -->
 		<Panel id="YawSpeedInfo" hittest="false" hittestchildren="false">
-			<Label id="SpeedometerYawSpeedLabel" text="" class="speedometer__yawspeed text-align-center" />
+			<Label id="SpeedometerYawSpeedLabel" text="" html="true" class="speedometer__yawspeed text-align-center" />
 			<Panel class="yaw-speed-info__bottom-spacer" />
 		</Panel>
 

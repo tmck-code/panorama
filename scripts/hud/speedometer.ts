@@ -125,6 +125,10 @@ class SpeedometerHandler {
 	duckBarVisible = false;
 	duckHideAt: number | undefined = undefined;
 
+	// Jump velocity is a "starting area" readout only - once the timer's running, further
+	// jumps shouldn't display a number.
+	timerState: TimerState = TimerState.DISABLED;
+
 	speedometers: Map<SpeedometerType, Array<Speedometer>> = new Map();
 
 	constructor() {
@@ -275,15 +279,31 @@ class SpeedometerHandler {
 	// velocity instead - this event fires at the segment start, so it's the same moment.
 	onSegmentEffectiveStart() {
 		this.updateZoneSpeedometers(magnitude(MomentumPlayerAPI.GetVelocity()));
+		// Jump velocity is only ever relevant leading up to a segment start; sync its fadeout
+		// with the zone velocity that just appeared so the two fade out together instead of the
+		// jump number disappearing first.
+		this.syncJumpFadeoutWithZone();
 	}
 
 	// Reset the readout whenever the run isn't actively going so a stale number doesn't linger.
 	onTimerStateChange() {
 		const { state } = MomentumTimerAPI.GetObservedTimerStatus();
+		this.timerState = state;
 
 		if (state === TimerState.DISABLED || state === TimerState.PRIMED) {
 			this.resetSpeedometerFadeouts();
 		}
+	}
+
+	// Restart the jump speedometer's fadeout timer in lockstep with the zone/start velocity
+	// readout, so once the run starts they fade out together rather than the jump number (which
+	// appeared earlier) fading first.
+	syncJumpFadeoutWithZone() {
+		const [jumpSpeedometer] = this.speedometers.get(SpeedometerType.JUMP_VELOCITY) ?? [];
+		if (!jumpSpeedometer) return;
+
+		jumpSpeedometer.speedometerPanel.AddClass(FADEOUT_START_FAST_CLASS);
+		jumpSpeedometer.speedometerPanel.TriggerClass(FADEOUT_CLASS);
 	}
 
 	resetSpeedometerFadeouts() {
@@ -336,6 +356,10 @@ class SpeedometerHandler {
 	}
 
 	updateSpeedometersOfType(type: SpeedometerType, velocity: vec3 | number) {
+		// Jump velocity should only show in the starting area, before the timer's running (and
+		// so before/at the same time as the start velocity readout) - not for jumps mid-run.
+		if (type === SpeedometerType.JUMP_VELOCITY && this.timerState === TimerState.RUNNING) return;
+
 		const speedometers = this.speedometers.get(type);
 		if (!speedometers) return;
 

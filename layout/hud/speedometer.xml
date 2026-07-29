@@ -12,10 +12,15 @@
 			<Panel class="v-align-center h-align-center">
 				<Panel id="SpeedometerContainer" class="speedometer">
 					<Panel class="speedometer__main">
+						<!-- Crouch indicator: a silhouette bar that shortens as the player crouches.
+						     The icon box is a fixed width so the speed label never shifts. -->
+						<Panel id="SpeedometerDuckIcon" class="speedometer__duck-icon">
+							<Panel id="SpeedometerDuckBarFill" class="speedometer__duck-bar-fill" />
+						</Panel>
 						<Label id="SpeedometerLabel" text="" class="text-align-center" />
+						<Panel id="SpeedometerIconSpacer" class="speedometer__duck-icon-spacer" />
 						<Label id="SpeedometerComparisonLabel" text="" />
 					</Panel>
-					<Label id="SpeedometerYawSpeedLabel" text="" class="speedometer__yawspeed text-align-center" />
 				</Panel>
 			</Panel>
 		</snippet>

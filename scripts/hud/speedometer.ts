@@ -4,13 +4,14 @@ import { RgbaTuple, tupleToRgbaString } from 'util/colors';
 import { SpeedometerColorType, SpeedometerType } from 'common/speedometer';
 import { TimerState } from 'common/timer';
 
+import { CustomizerPropertyType, registerHUDCustomizerComponent } from 'common/hud-customizer';
+import { getTextShadowFast } from 'common/hud-customizer';
+
 // arbitrary value to determine how much speed needs to change to be considered an increase/decrease
 // adjusted by speedometer update delta time
 const COLORIZE_DEADZONE = 2;
 
 const HIDDEN_CLASS = 'speedometer--hidden';
-const INCREASE_CLASS = 'speedometer--increase';
-const DECREASE_CLASS = 'speedometer--decrease';
 const FADEOUT_CLASS = 'speedometer--fadeout';
 const FADEOUT_START_CLASS = 'speedometer--fade-start';
 const FADEOUT_START_FAST_CLASS = 'speedometer--fade-start-fast';
@@ -47,6 +48,34 @@ interface Range {
 	color: rgbaColor;
 }
 
+// Fork colour defaults, kept in sync with styles/config.scss ($speedometer-color-default /
+// -increase / -decrease). Upstream moved colouring from SCSS classes to inline styles driven by
+// this object, so the fork's palette has to live here to keep rendering the same: yellow main
+// number, greenish-yellow on gain, orange on loss. EVENT_FLAT is fork-only - upstream applies
+// AXIS_FLAT to every speedometer, but pre-customizer only `.speedometer__axis` was tinted yellow,
+// so one-shot event readouts (jump/zone/ramp/...) stay white when flat.
+const Colors = {
+	AXIS_FLAT: 'rgba(255, 238, 0, 1)',
+	AXIS_GAIN: 'rgba(179, 255, 0, 1)',
+	AXIS_LOSS: 'rgba(255, 166, 0, 1)',
+	EVENT_FLAT: 'rgba(255, 255, 255, 1)',
+	COMPARISON_FLAT: 'rgba(255, 255, 255, 1)',
+	COMPARISON_GAIN: 'rgba(179, 255, 0, 1)',
+	COMPARISON_LOSS: 'rgba(255, 166, 0, 1)'
+};
+
+const Fonts = {
+	mainAxisFont: 'Roboto',
+	mainAxisFontSize: 26,
+	mainComparisonFont: 'Roboto',
+	mainComparisonFontSize: 22,
+
+	eventAxisFont: 'Roboto',
+	eventAxisFontSize: 18,
+	eventComparisonFont: 'Roboto',
+	eventComparisonFontSize: 16
+};
+
 type RuntimeSettings = SpeedometerSettingsAPI.Settings & { range_colors?: Range[] };
 
 class Speedometer {
@@ -57,6 +86,8 @@ class Speedometer {
 	duckIcon: Panel;
 	duckIconSpacer: Panel;
 	duckBarFill: Panel;
+	/** Continuously-updating readouts (overall velocity, energy) vs one-shot event readouts. */
+	isContinuous: boolean;
 	settings: RuntimeSettings;
 	prevVal: number;
 	fadeoutEventHandle: number;
@@ -72,20 +103,21 @@ class Speedometer {
 		this.settings = settings;
 		this.prevVal = 0;
 
+		// Overall velocity and energy update continuously, so they use the persistent "axis" styling
+		// rather than the transient "event" styling used by one-shot speedometers.
+		this.isContinuous = this.type === SpeedometerType.OVERALL_VELOCITY || this.type === SpeedometerType.ENERGY;
+
 		// The duck indicator only tracks the player's actual crouch state, which is
-		// only meaningful on the live overall-velocity readout (not event speedos).
-		// The spacer balances the icon's width so the label stays centered either way.
+		// only meaningful on the live overall-velocity readout (not event speedos, and not
+		// the energy readout). The spacer balances the icon's width so the label stays
+		// centered either way.
 		if (this.type !== SpeedometerType.OVERALL_VELOCITY) {
 			this.duckIcon.AddClass(HIDDEN_CLASS);
 			this.duckIconSpacer.AddClass(HIDDEN_CLASS);
 		}
 
-		this.speedometerLabel.AddClass(
-			this.type === SpeedometerType.OVERALL_VELOCITY ? AXIS_LABEL_CLASS : EVENT_LABEL_CLASS
-		);
-		this.comparisonLabel.AddClass(
-			this.type === SpeedometerType.OVERALL_VELOCITY ? AXIS_COMPLABEL_CLASS : EVENT_COMPLABEL_CLASS
-		);
+		this.speedometerLabel.AddClass(this.isContinuous ? AXIS_LABEL_CLASS : EVENT_LABEL_CLASS);
+		this.comparisonLabel.AddClass(this.isContinuous ? AXIS_COMPLABEL_CLASS : EVENT_COMPLABEL_CLASS);
 
 		this.comparisonLabel.SetHasClass(
 			HIDDEN_CLASS,
@@ -96,10 +128,14 @@ class Speedometer {
 		this.speedometerPanel.RemoveClass(FADEOUT_START_CLASS);
 		this.speedometerPanel.RemoveClass(FADEOUT_START_FAST_CLASS);
 		this.speedometerPanel.RemoveClass(FADEOUT_CLASS);
-		this.speedometerLabel.RemoveClass(DECREASE_CLASS);
-		this.speedometerLabel.RemoveClass(INCREASE_CLASS);
-		this.comparisonLabel.RemoveClass(DECREASE_CLASS);
-		this.comparisonLabel.RemoveClass(INCREASE_CLASS);
+
+		this.speedometerLabel.style.color = this.flatColor;
+		this.comparisonLabel.style.color = Colors.COMPARISON_FLAT;
+	}
+
+	/** Flat (no gain/loss) colour of this speedometer's main label. */
+	get flatColor(): string {
+		return this.isContinuous ? Colors.AXIS_FLAT : Colors.EVENT_FLAT;
 	}
 }
 
@@ -160,6 +196,163 @@ class SpeedometerHandler {
 		// do want to register when color profiles are saved though as that can happen independently
 		$.RegisterForUnhandledEvent('OnSpeedometerSettingsSaved', (succ: boolean) => this.onSettingsUpdate(succ));
 		$.RegisterForUnhandledEvent('OnRangeColorProfilesSaved', (succ: boolean) => this.onSettingsUpdate(succ));
+
+		registerHUDCustomizerComponent($.GetContextPanel(), {
+			name: $.Localize('#Customizer_Speedometer_Name'),
+			resizeX: true,
+			resizeY: false,
+			dynamicStyles: {
+				fontStyling: {
+					name: $.Localize('#Customizer_FontStyling'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'mainFontStyling' }, { styleID: 'eventFontStyling' }]
+				},
+				mainFontStyling: {
+					name: $.Localize('#Customizer_Main'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'mainAxisFontStyling' }, { styleID: 'mainComparisonFontStyling' }]
+				},
+				mainAxisFontStyling: {
+					name: $.Localize('#Customizer_Axis'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'mainAxisFont' }, { styleID: 'mainAxisFontSize' }]
+				},
+				mainAxisFont: {
+					name: $.Localize('#Customizer_Font'),
+					type: CustomizerPropertyType.FONT_PICKER,
+					callbackFunc: (_, value) => (Fonts.mainAxisFont = value),
+					onChanged: () => this.setFontStyling()
+				},
+				mainAxisFontSize: {
+					name: $.Localize('#Customizer_FontSize'),
+					type: CustomizerPropertyType.NUMBER_ENTRY,
+					callbackFunc: (_, value) => (Fonts.mainAxisFontSize = value),
+					onChanged: () => this.setFontStyling()
+				},
+				mainComparisonFontStyling: {
+					name: $.Localize('#Customizer_Comparisons'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'mainComparisonFont' }, { styleID: 'mainComparisonFontSize' }]
+				},
+				mainComparisonFont: {
+					name: $.Localize('#Customizer_Font'),
+					type: CustomizerPropertyType.FONT_PICKER,
+					callbackFunc: (_, value) => (Fonts.mainComparisonFont = value),
+					onChanged: () => this.setFontStyling()
+				},
+				mainComparisonFontSize: {
+					name: $.Localize('#Customizer_FontSize'),
+					type: CustomizerPropertyType.NUMBER_ENTRY,
+					callbackFunc: (_, value) => (Fonts.mainComparisonFontSize = value),
+					onChanged: () => this.setFontStyling()
+				},
+				eventFontStyling: {
+					name: $.Localize('#Customizer_Speedometer_EventFontStyling'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'eventAxisFontStyling' }, { styleID: 'eventComparisonFontStyling' }]
+				},
+				eventAxisFontStyling: {
+					name: $.Localize('#Customizer_Axis'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'eventAxisFont' }, { styleID: 'eventAxisFontSize' }]
+				},
+				eventAxisFont: {
+					name: $.Localize('#Customizer_Font'),
+					type: CustomizerPropertyType.FONT_PICKER,
+					callbackFunc: (_, value) => (Fonts.eventAxisFont = value),
+					onChanged: () => this.setFontStyling()
+				},
+				eventAxisFontSize: {
+					name: $.Localize('#Customizer_FontSize'),
+					type: CustomizerPropertyType.NUMBER_ENTRY,
+					callbackFunc: (_, value) => (Fonts.eventAxisFontSize = value),
+					onChanged: () => this.setFontStyling()
+				},
+				eventComparisonFontStyling: {
+					name: $.Localize('#Customizer_Comparisons'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'eventComparisonFont' }, { styleID: 'eventComparisonFontSize' }]
+				},
+				eventComparisonFont: {
+					name: $.Localize('#Customizer_Font'),
+					type: CustomizerPropertyType.FONT_PICKER,
+					callbackFunc: (_, value) => (Fonts.eventComparisonFont = value),
+					onChanged: () => this.setFontStyling()
+				},
+				eventComparisonFontSize: {
+					name: $.Localize('#Customizer_FontSize'),
+					type: CustomizerPropertyType.NUMBER_ENTRY,
+					callbackFunc: (_, value) => (Fonts.eventComparisonFontSize = value),
+					onChanged: () => this.setFontStyling()
+				},
+				colors: {
+					name: $.Localize('#Customizer_Colors'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'axisSpeedometerColors' }, { styleID: 'comparisonSpeedometerColors' }]
+				},
+				axisSpeedometerColors: {
+					name: $.Localize('#Customizer_Speedometer_AxisSpeedometerColors'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [{ styleID: 'axisFlatColor' }, { styleID: 'axisGainColor' }, { styleID: 'axisLossColor' }]
+				},
+				axisFlatColor: {
+					name: $.Localize('#Customizer_Flat'),
+					type: CustomizerPropertyType.COLOR_PICKER,
+					callbackFunc: (_, value) => (Colors.AXIS_FLAT = value)
+				},
+				axisGainColor: {
+					name: $.Localize('#Customizer_Gain'),
+					type: CustomizerPropertyType.COLOR_PICKER,
+					callbackFunc: (_, value) => (Colors.AXIS_GAIN = value)
+				},
+				axisLossColor: {
+					name: $.Localize('#Customizer_Loss'),
+					type: CustomizerPropertyType.COLOR_PICKER,
+					callbackFunc: (_, value) => (Colors.AXIS_LOSS = value)
+				},
+				comparisonSpeedometerColors: {
+					name: $.Localize('#Customizer_Speedometer_ComparisonSpeedometerColors'),
+					type: CustomizerPropertyType.NONE,
+					expandable: true,
+					children: [
+						{ styleID: 'comparisonFlatColor' },
+						{ styleID: 'comparisonGainColor' },
+						{ styleID: 'comparisonLossColor' }
+					]
+				},
+				comparisonFlatColor: {
+					name: $.Localize('#Customizer_Flat'),
+					type: CustomizerPropertyType.COLOR_PICKER,
+					callbackFunc: (_, value) => (Colors.COMPARISON_FLAT = value)
+				},
+				comparisonGainColor: {
+					name: $.Localize('#Customizer_Gain'),
+					type: CustomizerPropertyType.COLOR_PICKER,
+					callbackFunc: (_, value) => (Colors.COMPARISON_GAIN = value)
+				},
+				comparisonLossColor: {
+					name: $.Localize('#Customizer_Loss'),
+					type: CustomizerPropertyType.COLOR_PICKER,
+					callbackFunc: (_, value) => (Colors.COMPARISON_LOSS = value)
+				},
+				backgroundColor: {
+					name: $.Localize('#Customizer_BackgroundColor'),
+					type: CustomizerPropertyType.COLOR_PICKER,
+					targetPanel: '.speedometers',
+					styleProperty: 'backgroundColor'
+				}
+			},
+			postInit: () => this.setFontStyling()
+		});
 	}
 
 	registerFadeoutEventHandlers() {
@@ -202,6 +395,7 @@ class SpeedometerHandler {
 
 		this.correctedColorizeDeadzone = deltaTime * COLORIZE_DEADZONE;
 		this.updateSpeedometersOfType(SpeedometerType.OVERALL_VELOCITY, velocity);
+		this.updateSpeedometersOfType(SpeedometerType.ENERGY, MomentumPlayerAPI.GetEnergy());
 		this.updateYawSpeedDisplay();
 		this.updateDuckIndicator();
 	}
@@ -366,8 +560,10 @@ class SpeedometerHandler {
 		for (const speedometer of speedometers) {
 			// HACK: last jump speedometer type don't have full velocity vector, and so the velocity they pass in is actually speed
 			// Refactor runstats to fix
+			// Energy is also a scalar rather than a velocity vector, and unlike speeds it can be negative,
+			// so it must be passed through as-is without axis selection or Math.abs.
 			const speed =
-				type === SpeedometerType.JUMP_VELOCITY
+				type === SpeedometerType.JUMP_VELOCITY || type === SpeedometerType.ENERGY
 					? (velocity as number)
 					: this.getSpeedFromVelocity(velocity as vec3, speedometer.settings);
 
@@ -390,32 +586,43 @@ class SpeedometerHandler {
 		if (hasComparison && speedometerHasComparison) {
 			const diff = customdiff ?? speed - speedometer.prevVal;
 
-			const labelToColor = separateComparison ? speedometer.comparisonLabel : speedometer.speedometerLabel;
+			const [labelToColor, gainColor, lossColor, flatColor] = separateComparison
+				? [speedometer.comparisonLabel, Colors.COMPARISON_GAIN, Colors.COMPARISON_LOSS, Colors.COMPARISON_FLAT]
+				: [speedometer.speedometerLabel, Colors.AXIS_GAIN, Colors.AXIS_LOSS, speedometer.flatColor];
+
+			// const labelToColor = separateComparison ? speedometer.comparisonLabel : speedometer.speedometerLabel;
+
 			let diffSymbol: string;
 			if (diff - this.correctedColorizeDeadzone > 0) {
-				labelToColor.AddClass(INCREASE_CLASS);
-				labelToColor.RemoveClass(DECREASE_CLASS);
+				labelToColor.style.color = gainColor;
+				labelToColor.style.textShadowFast = getTextShadowFast(gainColor as rgbaColor, 0.9);
 				diffSymbol = '+';
 			} else if (diff + this.correctedColorizeDeadzone < 0) {
-				labelToColor.AddClass(DECREASE_CLASS);
-				labelToColor.RemoveClass(INCREASE_CLASS);
+				labelToColor.style.color = lossColor;
+				labelToColor.style.textShadowFast = getTextShadowFast(lossColor as rgbaColor, 0.9);
 				diffSymbol = '-';
 			} else {
-				labelToColor.RemoveClass(INCREASE_CLASS);
-				labelToColor.RemoveClass(DECREASE_CLASS);
+				labelToColor.style.color = flatColor;
+				labelToColor.style.textShadowFast = getTextShadowFast(flatColor as rgbaColor, 0.9);
 				diffSymbol = '';
 			}
 
 			if (separateComparison) {
 				speedometer.comparisonLabel.text = `${diffSymbol}${Math.round(Math.abs(diff))}`;
-				speedometer.speedometerLabel.RemoveClass(INCREASE_CLASS);
-				speedometer.speedometerLabel.RemoveClass(DECREASE_CLASS);
+				speedometer.speedometerLabel.style.color = speedometer.flatColor;
+				speedometer.speedometerLabel.style.textShadowFast = getTextShadowFast(
+					speedometer.flatColor as rgbaColor,
+					0.9
+				);
 			}
 
 			speedometer.prevVal = speed;
 		} else {
-			speedometer.speedometerLabel.RemoveClass(INCREASE_CLASS);
-			speedometer.speedometerLabel.RemoveClass(DECREASE_CLASS);
+			speedometer.speedometerLabel.style.color = speedometer.flatColor;
+			speedometer.speedometerLabel.style.textShadowFast = getTextShadowFast(
+				speedometer.flatColor as rgbaColor,
+				0.9
+			);
 
 			const rangeList = speedometer.settings.range_colors;
 			if (colorType === SpeedometerColorType.RANGE && rangeList) {
@@ -441,9 +648,9 @@ class SpeedometerHandler {
 		}
 	}
 
-	// Overall velocity speedometers shouldn't fade out as they constantly update
+	// Overall velocity and energy speedometers shouldn't fade out as they constantly update
 	canSpeedometerTypeFadeOut(type: SpeedometerType): boolean {
-		return type !== SpeedometerType.OVERALL_VELOCITY;
+		return type !== SpeedometerType.OVERALL_VELOCITY && type !== SpeedometerType.ENERGY;
 	}
 
 	// Jump/start velocity are one-off readouts for a single jump/segment, so they should
@@ -528,5 +735,40 @@ class SpeedometerHandler {
 		}
 
 		this.registerFadeoutEventHandlers();
+		this.setFontStyling();
+	}
+
+	setFontStyling() {
+		const FONT_MAP = [
+			{
+				selector: 'speedometer__axis',
+				family: Fonts.mainAxisFont,
+				size: Fonts.mainAxisFontSize
+			},
+			{
+				selector: 'speedometer__axis__comparison',
+				family: Fonts.mainComparisonFont,
+				size: Fonts.mainComparisonFontSize
+			},
+			{
+				selector: 'speedometer__event',
+				family: Fonts.eventAxisFont,
+				size: Fonts.eventAxisFontSize
+			},
+			{
+				selector: 'speedometer__event__comparison',
+				family: Fonts.eventComparisonFont,
+				size: Fonts.eventComparisonFontSize
+			}
+		];
+
+		const root = $.GetContextPanel();
+
+		for (const { selector, family, size } of FONT_MAP) {
+			for (const panel of root.FindChildrenWithClassTraverse(selector)) {
+				panel.style.fontFamily = `"${family}"`;
+				panel.style.fontSize = `${size}px`;
+			}
+		}
 	}
 }

@@ -26,7 +26,7 @@
 		</snippet>
 	</snippets>
 
-	<MomHudSpeedometer class="h-align-center">
+	<MomHudSpeedometer>
 		<Panel id="SpeedometersContainer" class="speedometers">
 		</Panel>
 	</MomHudSpeedometer>

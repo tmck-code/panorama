@@ -7,6 +7,13 @@ import * as Colors from 'util/colors';
 export class SettingsPage {
 	paintContainer: Panel;
 	videoSettingsPanel: Panel;
+	hudCustomizerButton: Button;
+
+	constructor() {
+		// The HUD customizer can only be opened from within a map, and the settings page can be left
+		// open on the Interface tab across state changes, so keep the button in sync with the UI state.
+		$.RegisterForUnhandledEvent('GameUIStateChanged', () => this.updateHudCustomizerButton());
+	}
 
 	onChangedTab(newTab: string) {
 		switch (newTab) {
@@ -45,6 +52,11 @@ export class SettingsPage {
 
 				break;
 			}
+			case 'InterfaceSettings': {
+				this.updateHudCustomizerButton();
+
+				break;
+			}
 			// No default
 		}
 
@@ -59,6 +71,42 @@ export class SettingsPage {
 		(panel as any).OnShow?.();
 
 		for (const child of panel.Children() || []) this.refreshControlsRecursive(child);
+	}
+
+	/** The HUD customizer only exists in-game, so it's unavailable whenever we're not loaded into a map. */
+	isHudCustomizerAvailable() {
+		return GameInterfaceAPI.GetGameUIState() === GameUIState.PAUSEMENU;
+	}
+
+	getHudCustomizerButton() {
+		// The interface tab may not have been loaded yet, in which case try again next time
+		this.hudCustomizerButton ??= $.GetContextPanel().FindChildTraverse<Button>('HudCustomizerOpenButton');
+		return this.hudCustomizerButton;
+	}
+
+	updateHudCustomizerButton() {
+		const button = this.getHudCustomizerButton();
+		if (!button) return;
+
+		button.enabled = this.isHudCustomizerAvailable();
+	}
+
+	/**
+	 * Explain why the button is disabled. Hover events propagate up from the (disabled) button to the
+	 * panel this is registered on, so we have to gate on the state ourselves.
+	 */
+	showHudCustomizerTooltip() {
+		if (this.isHudCustomizerAvailable()) return;
+
+		UiToolkitAPI.ShowTextTooltip(
+			this.getHudCustomizerButton().id,
+			$.Localize('#Settings_HudCustomizer_Open_Unavailable')
+		);
+	}
+
+	openHudCustomizer() {
+		GameInterfaceAPI.ConsoleCommand('mom_hudcustomizer_enable 1');
+		$.DispatchEvent('MainMenuResumeGame');
 	}
 
 	resetSettingsRecursive(panel: GenericPanel) {
@@ -171,7 +219,7 @@ export class SettingsPage {
 
 		const paintPanel = this.paintContainer.FindChild<Panel>('PaintBlob');
 
-		paintPanel.style.backgroundColor = color;
+		paintPanel.style.backgroundColor = color as color;
 		paintPanel.style.width = scale * width + 'px';
 	}
 
@@ -195,8 +243,8 @@ export class SettingsPage {
 		this.ghostPreview.LookAtModel();
 		this.ghostPreview.SetCameraOffset(-65, 0, 0);
 
-		this.ghostPreview.SetLightAmbient(1, 1, 1);
-		this.ghostPreview.SetDirectionalLightColor(0, 2, 2, 2);
+		this.ghostPreview.SetLightAmbient(0.5, 0.5, 0.5);
+		this.ghostPreview.SetDirectionalLightColor(0, 1, 1, 1);
 		this.ghostPreview.SetDirectionalLightDirection(0, 1, 1, -1);
 
 		this.ghostPrimaryColor.style.backgroundColor = Colors.tupleToRgbaString(

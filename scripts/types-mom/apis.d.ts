@@ -84,6 +84,8 @@ declare namespace MomentumMovementAPI {
 		flightTime: int32;
 		defragTimer: int32;
 		defragTimerFlags: int32;
+		airJumpEnabled: boolean;
+		canAirJump: boolean;
 	}
 
 	interface LastJump {
@@ -152,6 +154,9 @@ declare namespace MomentumPlayerAPI {
 
 	/** Gets the player or spec target's current view angles */
 	function GetAngles(): vec3;
+
+	/** Gets the player or spec target's current mechanical energy, expressed as the height (in units) reachable above their last jump position */
+	function GetEnergy(): float;
 
 	/** Gets the player or spec target's percentage of sync'd strafe ticks according to calculation type */
 	function GetStrafeSync(type: 0 | 1): float;
@@ -324,6 +329,17 @@ declare namespace MomentumTimerAPI {
 
 	/** Check whether local or online zone files exist */
 	function GetSavedZoneStatus(): import('pages/zoning/zoning').savedZoneStatus;
+}
+
+declare namespace MomentumInputAPI {
+	interface KeypressButtons {
+		physicalButtons: int32;
+		toggledButtons: int32;
+		disabledButtons: int32;
+		forcedButtons: int32;
+	}
+
+	function GetButtons(): KeypressButtons;
 }
 
 declare namespace MapCacheAPI {
@@ -550,34 +566,6 @@ declare namespace DefragAPI {
 	function GetHUDCompassCFG(): CompassConfig;
 
 	function GetHUDGroundboostCFG(): GroundboostConfig;
-}
-
-/**
- * API for reading and writing HUD config files.
- *
- * C++ side is agnostic to what you pass it, and we're not decided on the format of HUD layouts,
- * so types here are deliberately very weak; types in the HUD customizer files are much stronger.
- *
- * Note that cfg/hud_default.kv3 is stored in the licensee-only game repo, just let someone
- * (probably Tom) know if you need to update it.
- */
-declare namespace HudCustomizerAPI {
-	/**
-	 * Saves the given object to cfg/hud.kv3.
-	 */
-	function SaveLayoutFromJS(data: Record<string, any>): void;
-
-	/**
-	 * Tries to get the contents of cfg/hud.kv3 as a JS object.
-	 *
-	 * If cfg/hud.kv3 doesn't exist, loads cfg/hud_default.kv3.
-	 */
-	function GetLayout(): Record<string, any>;
-
-	/**
-	 * Gets the contents of cfg/hud_default.kv3 as a JS object.
-	 */
-	function GetDefaultLayout(): Record<string, any>;
 }
 
 declare namespace ToastAPI {

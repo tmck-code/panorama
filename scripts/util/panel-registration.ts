@@ -29,6 +29,7 @@ declare interface PanelTagNameMap {
 	MomHudKeypress: MomHudKeypress;
 	MomHudAhopSprint: MomHudAhopSprint;
 	ForkYawSpeedInfo: ForkYawSpeedInfo;
+	ForkSavestateAuto: ForkSavestateAuto;
 	ToastContainer: ToastContainer;
 	ToastGeneric: ToastGeneric;
 	Gallery: Gallery;
@@ -101,3 +102,6 @@ UiToolkitAPI.RegisterHUDPanel2d('MomHudAhopSprint', 'file://{resources}/layout/h
 
 declare interface ForkYawSpeedInfo extends AbstractHudPanel<'ForkYawSpeedInfo'> {}
 UiToolkitAPI.RegisterHUDPanel2d('ForkYawSpeedInfo', 'file://{resources}/layout/hud/fork-yaw-speed-info.xml');
+
+declare interface ForkSavestateAuto extends AbstractHudPanel<'ForkSavestateAuto'> {}
+UiToolkitAPI.RegisterHUDPanel2d('ForkSavestateAuto', 'file://{resources}/layout/hud/fork-savestate-auto.xml');

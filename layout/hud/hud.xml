@@ -81,6 +81,8 @@
 		
         <!-- This must be placed after all panels registered with hud customizer -->
 		<ForkYawSpeedInfo id="YawSpeedInfo" />
+		<!-- FORK: invisible; drives periodic mom_savestate_create (see scripts/hud/fork-savestate-auto.ts) -->
+		<ForkSavestateAuto id="SavestateAuto" />
 		<HudCustomizer />
 
 		<!-- Make sure these are at the bottom to get the z-order right -->

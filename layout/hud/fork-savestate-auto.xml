@@ -1,0 +1,8 @@
+<root>
+	<scripts>
+		<include type="module" src="file://{scripts}/hud/fork-savestate-auto.ts" />
+	</scripts>
+
+	<!-- FORK: no visuals; exists only to host the auto-savestate script in the HUD context. -->
+	<ForkSavestateAuto class="hide" hittest="false" />
+</root>

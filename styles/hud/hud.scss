@@ -61,22 +61,6 @@
 	flow-children: down;
 }
 
-#YawSpeedInfo {
-	horizontal-align: center;
-	vertical-align: bottom;
-	width: 100%;
-	flow-children: down;
-}
-
-// Pushes the yaw/sensitivity label up from the true bottom edge of the screen. A percentage
-// margin/padding on #YawSpeedInfo itself would resolve against that panel's own content-fit
-// size (near zero), not the screen, so this uses a fixed height instead: 10% of the standard
-// 1080-unit design resolution.
-.yaw-speed-info__bottom-spacer {
-	width: 100%;
-	height: 108px;
-}
-
 #HudLowerLeft {
 	horizontal-align: left;
 	vertical-align: bottom;

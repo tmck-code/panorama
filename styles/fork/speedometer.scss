@@ -1,0 +1,55 @@
+// FORK: additions to upstream's .speedometer. Duck-indicator panels are created at runtime by
+// scripts/hud/fork-speedometer-ext.ts. None of these classes hold text, and none start with
+// `speedometer__`, so upstream's setFontStyling() leaves them alone.
+$speedometer-event-fadeout-time-fast: 1s;
+
+// Crouch indicator beside the speed number. Fixed box so the speed label's position never
+// depends on the indicator's current size.
+.fork-duck-icon {
+	width: 26px;
+	height: 18px;
+	vertical-align: center;
+	margin-right: 4px;
+	horizontal-align: center;
+}
+
+// The crouch indicator itself: a single silhouette that shrinks and changes colour as the
+// player crouches, hidden while standing. Height, colour and visibility are all driven
+// per-frame in code, so no transitions here.
+.fork-duck-bar-fill {
+	width: 7px;
+	height: 18px;
+	horizontal-align: center;
+	vertical-align: bottom;
+	// Matches the standing end of the code-driven white -> yellow ramp.
+	background-color: rgba(255, 255, 255, 255);
+	transition-property: none;
+}
+
+// Balances the width of .fork-duck-icon on the opposite side of the label, so the label
+// itself stays horizontally centered whether or not the icon is shown.
+.fork-duck-spacer {
+	width: 30px;
+}
+
+.speedometer {
+	// Jump/start velocity readouts fade out much sooner than other event speedometers.
+	&--fade-start-fast {
+		transition-property: opacity;
+		transition-duration: $speedometer-event-fadeout-time-fast;
+		transition-timing-function: cubic-bezier(1, 0, 1, 0);
+	}
+	// Applied to a speedometer that's been laid out beside another one (e.g. zone
+	// start velocity beside jump speed) instead of stacked below it on its own line.
+	&--merged {
+		margin-left: 8px;
+	}
+}
+
+// Wraps two speedometer panels that should sit side by side on the same line
+// instead of each getting their own row. Each child still owns its own
+// fade/visibility state; only their layout is shared.
+.speedometer-row {
+	align: center center;
+	flow-children: right;
+}

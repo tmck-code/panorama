@@ -1,0 +1,3 @@
+// FORK: fork-only styles, kept out of upstream-owned partials. Wired by a single @use in main.scss.
+@use 'speedometer';
+@use 'yaw-speed-info';

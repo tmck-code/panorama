@@ -1,0 +1,13 @@
+<root>
+	<styles>
+		<include src="file://{resources}/styles/main.scss" />
+	</styles>
+
+	<scripts>
+		<include type="module" src="file://{scripts}/hud/fork-yaw-speed-info.ts" />
+	</scripts>
+
+	<ForkYawSpeedInfo class="fork-yaw-speed-info">
+		<Label id="ForkYawSpeedInfoLabel" class="fork-yaw-speed-info__label text-align-center" text="" html="true" />
+	</ForkYawSpeedInfo>
+</root>

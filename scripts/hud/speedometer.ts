@@ -1,6 +1,5 @@
 import { PanelHandler } from 'util/module-helpers';
-import { magnitude } from 'util/math';
-import { RgbaTuple, tupleToRgbaString } from 'util/colors';
+import { tupleToRgbaString } from 'util/colors';
 import { SpeedometerColorType, SpeedometerType } from 'common/speedometer';
 import { TimerState } from 'common/timer';
 
@@ -14,33 +13,13 @@ const COLORIZE_DEADZONE = 2;
 const HIDDEN_CLASS = 'speedometer--hidden';
 const FADEOUT_CLASS = 'speedometer--fadeout';
 const FADEOUT_START_CLASS = 'speedometer--fade-start';
+// FORK: jump/zone readouts use a shorter fadeout (styles/fork/speedometer.scss)
 const FADEOUT_START_FAST_CLASS = 'speedometer--fade-start-fast';
 
 const AXIS_LABEL_CLASS = 'speedometer__axis';
 const AXIS_COMPLABEL_CLASS = 'speedometer__axis__comparison';
 const EVENT_LABEL_CLASS = 'speedometer__event';
 const EVENT_COMPLABEL_CLASS = 'speedometer__event__comparison';
-const EVENT_MERGED_CLASS = 'speedometer--merged';
-const SPEEDOMETER_ROW_CLASS = 'speedometer-row';
-
-// Measured via edge-triggered console logging (duckpressed -> IsDucking delay): the crouch
-// animation takes ~420ms to go down and ~220ms to stand back up.
-const DUCK_DOWN_DURATION_MS = 420;
-const DUCK_UP_DURATION_MS = 220;
-
-// Once the stand-up animation completes, keep the (now fully-standing) bar on screen this
-// long before hiding it, rather than disappearing the instant it reaches full height.
-const DUCK_HIDE_DELAY_MS = 200;
-
-// The bar's colour ramp, standing -> fully crouched. SCSS vars aren't reachable from TS,
-// so these are duplicated here.
-const DUCK_COLOR_WHITE: RgbaTuple = [255, 255, 255, 255];
-const DUCK_COLOR_YELLOW: RgbaTuple = [255, 221, 0, 255];
-const DUCK_BAR_RAMP: readonly [RgbaTuple, RgbaTuple] = [DUCK_COLOR_WHITE, DUCK_COLOR_YELLOW];
-
-// The bar's silhouette height in px, standing -> fully crouched.
-const DUCK_BAR_HEIGHT_STANDING = 18;
-const DUCK_BAR_HEIGHT_CROUCHED = 7.5;
 
 interface Range {
 	min: number;
@@ -48,10 +27,7 @@ interface Range {
 	color: rgbaColor;
 }
 
-// EVENT_FLAT is fork-only: upstream applies AXIS_FLAT to every speedometer, but one-shot event
-// readouts (jump/zone/ramp/...) should stay white when flat regardless of the customized axis
-// colour. The fork's palette itself lives in the checked-in HUD customizer preset
-// (cfg/hud/surf_surf.kv3), not here.
+// FORK: EVENT_FLAT keeps one-shot event readouts white when flat regardless of the customized axis colour.
 const Colors = {
 	AXIS_FLAT: 'rgba(255, 255, 255, 1)',
 	AXIS_GAIN: 'rgba(24, 150, 211, 1)',
@@ -81,10 +57,7 @@ class Speedometer {
 	speedometerPanel: Panel;
 	speedometerLabel: Label;
 	comparisonLabel: Label;
-	duckIcon: Panel;
-	duckIconSpacer: Panel;
-	duckBarFill: Panel;
-	/** Continuously-updating readouts (overall velocity, energy) vs one-shot event readouts. */
+	/** FORK: continuously-updating readouts (overall velocity, energy) vs one-shot event readouts. */
 	isContinuous: boolean;
 	settings: RuntimeSettings;
 	prevVal: number;
@@ -95,27 +68,15 @@ class Speedometer {
 		this.speedometerPanel = speedometerPanel;
 		this.speedometerLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerLabel');
 		this.comparisonLabel = speedometerPanel.FindChildInLayoutFile('SpeedometerComparisonLabel');
-		this.duckIcon = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckIcon');
-		this.duckIconSpacer = speedometerPanel.FindChildInLayoutFile('SpeedometerIconSpacer');
-		this.duckBarFill = speedometerPanel.FindChildInLayoutFile('SpeedometerDuckBarFill');
 		this.settings = settings;
 		this.prevVal = 0;
 
 		// Overall velocity and energy update continuously, so they use the persistent "axis" styling
 		// rather than the transient "event" styling used by one-shot speedometers.
-		this.isContinuous = this.type === SpeedometerType.OVERALL_VELOCITY || this.type === SpeedometerType.ENERGY;
-
-		// The duck indicator only tracks the player's actual crouch state, which is
-		// only meaningful on the live overall-velocity readout (not event speedos, and not
-		// the energy readout). The spacer balances the icon's width so the label stays
-		// centered either way.
-		if (this.type !== SpeedometerType.OVERALL_VELOCITY) {
-			this.duckIcon.AddClass(HIDDEN_CLASS);
-			this.duckIconSpacer.AddClass(HIDDEN_CLASS);
-		}
-
-		this.speedometerLabel.AddClass(this.isContinuous ? AXIS_LABEL_CLASS : EVENT_LABEL_CLASS);
-		this.comparisonLabel.AddClass(this.isContinuous ? AXIS_COMPLABEL_CLASS : EVENT_COMPLABEL_CLASS);
+		const isContinuous = this.type === SpeedometerType.OVERALL_VELOCITY || this.type === SpeedometerType.ENERGY;
+		this.isContinuous = isContinuous;
+		this.speedometerLabel.AddClass(isContinuous ? AXIS_LABEL_CLASS : EVENT_LABEL_CLASS);
+		this.comparisonLabel.AddClass(isContinuous ? AXIS_COMPLABEL_CLASS : EVENT_COMPLABEL_CLASS);
 
 		this.comparisonLabel.SetHasClass(
 			HIDDEN_CLASS,
@@ -131,7 +92,7 @@ class Speedometer {
 		this.comparisonLabel.style.color = Colors.COMPARISON_FLAT;
 	}
 
-	/** Flat (no gain/loss) colour of this speedometer's main label. */
+	/** FORK: flat (no gain/loss) colour of this speedometer's main label. */
 	get flatColor(): string {
 		return this.isContinuous ? Colors.AXIS_FLAT : Colors.EVENT_FLAT;
 	}
@@ -140,28 +101,8 @@ class Speedometer {
 @PanelHandler()
 class SpeedometerHandler {
 	container = $<Panel>('#SpeedometersContainer');
+	lastZone = 0;
 	correctedColorizeDeadzone = 0;
-
-	duckKeyPressed = false;
-	duckKeyBindingSeen = false;
-
-	// Drives the bar: interpolated 0 (standing) -> 1 (fully ducked) over real time, using the
-	// measured crouch/stand durations, so it reads as a smooth gradient through the
-	// transition rather than a binary flip.
-	duckProgress = 0;
-	duckAnimStartProgress = 0;
-	duckAnimStartTime = 0;
-	duckAnimTargetProgress = 0;
-	duckAnimDurationMs = 0;
-
-	// The bar is hidden by default and appears the instant the player starts crouching. Once
-	// they stand back up and the animation settles, it lingers briefly before hiding again.
-	duckBarVisible = false;
-	duckHideAt: number | undefined = undefined;
-
-	// Jump velocity is a "starting area" readout only - once the timer's running, further
-	// jumps shouldn't display a number.
-	timerState: TimerState = TimerState.DISABLED;
 
 	speedometers: Map<SpeedometerType, Array<Speedometer>> = new Map();
 
@@ -181,13 +122,6 @@ class SpeedometerHandler {
 		$.RegisterEventHandler('OnSpeedometerUpdate', this.container, (deltaTime: float) =>
 			this.onSpeedometerUpdate(deltaTime)
 		);
-
-		// Zone-velocity speedometer: capture the player's speed at the start of every segment.
-		// This fires once per segment/stage, unlike the timer state which only changes at the
-		// start and end of the whole run (so it stayed on stage 1's value on staged maps).
-		$.RegisterForUnhandledEvent('OnObservedTimerSegmentEffectiveStart', () => this.onSegmentEffectiveStart());
-		// Still needed purely to clear a stale readout when the run isn't going.
-		$.RegisterForUnhandledEvent('OnObservedTimerStateChange', () => this.onTimerStateChange());
 
 		// color profiles load before speedo settings, so listening to just the speedo settings load event should be enough
 		$.RegisterForUnhandledEvent('OnSpeedometerSettingsLoaded', (succ: boolean) => this.onSettingsUpdate(succ));
@@ -394,109 +328,44 @@ class SpeedometerHandler {
 		this.correctedColorizeDeadzone = deltaTime * COLORIZE_DEADZONE;
 		this.updateSpeedometersOfType(SpeedometerType.OVERALL_VELOCITY, velocity);
 		this.updateSpeedometersOfType(SpeedometerType.ENERGY, MomentumPlayerAPI.GetEnergy());
-		this.updateYawSpeedDisplay();
-		this.updateDuckIndicator();
 	}
 
-	// Crouch indicator: a silhouette bar that shrinks and changes colour as the player
-	// crouches, hidden while standing. The duck key is bound (in autoexec.cfg) to flip the
-	// `duckpressed` userinfo convar, giving an immediate key signal on BOTH edges - unlike
-	// IsDucking(), which stays true for the whole stand-up animation and so would make the
-	// uncrouch visibly lag the player model.
-	// `duckpressed` reads 0 both when the convar is missing and when the key is up, so we
-	// can't probe for it directly; instead we latch the first time we see it at 1 and from
-	// then on trust it alone. Until then (and forever, for users without the cfg) we fall
-	// back to the delayed crouch state.
-	updateDuckIndicator() {
-		const speedometers = this.speedometers.get(SpeedometerType.OVERALL_VELOCITY);
-		if (!speedometers) return;
-
-		const keyPressed = GameInterfaceAPI.GetSettingInt('duckpressed') === 1;
-		if (keyPressed) this.duckKeyBindingSeen = true;
-		const ducking = this.duckKeyBindingSeen ? keyPressed : MomentumPlayerAPI.IsDucking();
-
-		const now = Date.now();
-		if (ducking !== this.duckKeyPressed) {
-			this.duckKeyPressed = ducking;
-			this.duckAnimStartProgress = this.duckProgress;
-			this.duckAnimStartTime = now;
-			this.duckAnimTargetProgress = ducking ? 1 : 0;
-			this.duckAnimDurationMs = ducking ? DUCK_DOWN_DURATION_MS : DUCK_UP_DURATION_MS;
-
-			// Appear immediately (at full standing size) the instant a crouch starts; cancel
-			// any pending hide from a previous stand-up.
-			if (ducking) {
-				this.duckBarVisible = true;
-				this.duckHideAt = undefined;
-			}
-		}
-
-		const elapsedMs = now - this.duckAnimStartTime;
-		const t = this.duckAnimDurationMs > 0 ? Math.min(1, elapsedMs / this.duckAnimDurationMs) : 1;
-		this.duckProgress = this.duckAnimStartProgress + (this.duckAnimTargetProgress - this.duckAnimStartProgress) * t;
-
-		// Once the stand-up animation has fully settled, start (or continue) the delay before
-		// hiding the bar.
-		if (!ducking && t >= 1) {
-			if (this.duckHideAt === undefined) this.duckHideAt = now + DUCK_HIDE_DELAY_MS;
-			if (this.duckBarVisible && now >= this.duckHideAt) {
-				this.duckBarVisible = false;
-				this.duckHideAt = undefined;
-			}
-		}
-
-		const height =
-			DUCK_BAR_HEIGHT_STANDING - this.duckProgress * (DUCK_BAR_HEIGHT_STANDING - DUCK_BAR_HEIGHT_CROUCHED);
-		const color = this.duckProgressColor(DUCK_BAR_RAMP);
-
-		for (const speedometer of speedometers) {
-			speedometer.duckBarFill.style.height = `${height}px`;
-			speedometer.duckBarFill.style.backgroundColor = color;
-			speedometer.duckBarFill.SetHasClass(HIDDEN_CLASS, !this.duckBarVisible);
-		}
-	}
-
-	// Bar colour, lerped straight from duckProgress across the ramp's standing/crouched
-	// endpoints.
-	duckProgressColor([standing, crouched]: readonly [RgbaTuple, RgbaTuple]): string {
-		const lerped = standing.map((channel, index) =>
-			Math.round(channel + (crouched[index] - channel) * this.duckProgress)
-		) as RgbaTuple;
-		return tupleToRgbaString(lerped);
-	}
-
-	// Capture the player's speed at the start of each segment (stage/major checkpoint). The
-	// segment itself records an effectiveStartVelocity, but that field doesn't come through the
-	// splits serialisation as the `{x, y, z}` vec3 the typings promise, so sample the live
-	// velocity instead - this event fires at the segment start, so it's the same moment.
-	onSegmentEffectiveStart() {
-		this.updateZoneSpeedometers(magnitude(MomentumPlayerAPI.GetVelocity()));
-		// Jump velocity is only ever relevant leading up to a segment start; sync its fadeout
-		// with the zone velocity that just appeared so the two fade out together instead of the
-		// jump number disappearing first.
-		this.syncJumpFadeoutWithZone();
-	}
-
-	// Reset the readout whenever the run isn't actively going so a stale number doesn't linger.
-	onTimerStateChange() {
-		const { state } = MomentumTimerAPI.GetObservedTimerStatus();
-		this.timerState = state;
-
-		if (state === TimerState.DISABLED || state === TimerState.PRIMED) {
+	/* TODO: replace with updates based on new timer events
+	onZoneChange(enter: boolean, linear: boolean, curZone: int32, _curTrack: int32, timerState: TimerState_OLD) {
+		const startZone = curZone === 1;
+		if (enter && startZone) {
+			this.lastZone = 0;
 			this.resetSpeedometerFadeouts();
+			return;
+		}
+
+		if (timerState === 0) return; // timer isn't running
+
+		// return on current or previous zone, on a linear map
+		if (curZone <= this.lastZone && linear) return;
+
+		// show only on zone enter for linear maps, zone exits on staged maps,
+		// and start zone exits on linear maps
+		const exitStartOnLinear = linear && !enter && startZone;
+		if (linear === !enter && !exitStartOnLinear) return;
+
+		this.lastZone = curZone;
+		const actualSpeedAbs = ZonesAPI.GetZoneSpeed(curZone, false);
+		const actualSpeedHoriz = ZonesAPI.GetZoneSpeed(curZone, true);
+		const comparisonLoaded = RunComparisonsAPI.IsComparisonLoaded();
+
+		if (comparisonLoaded) {
+			const comparisonSpeedAbs = RunComparisonsAPI.GetLoadedComparisonSpeed(curZone, false);
+			const comparisonSpeedHoriz = RunComparisonsAPI.GetLoadedComparisonSpeed(curZone, true);
+			const diffAbs = actualSpeedAbs - comparisonSpeedAbs;
+			const diffHoriz = actualSpeedHoriz - comparisonSpeedHoriz;
+
+			this.updateZoneSpeedometers(actualSpeedAbs, actualSpeedHoriz, true, diffAbs, diffHoriz);
+		} else {
+			this.updateZoneSpeedometers(actualSpeedAbs, actualSpeedHoriz, false);
 		}
 	}
-
-	// Restart the jump speedometer's fadeout timer in lockstep with the zone/start velocity
-	// readout, so once the run starts they fade out together rather than the jump number (which
-	// appeared earlier) fading first.
-	syncJumpFadeoutWithZone() {
-		const [jumpSpeedometer] = this.speedometers.get(SpeedometerType.JUMP_VELOCITY) ?? [];
-		if (!jumpSpeedometer) return;
-
-		jumpSpeedometer.speedometerPanel.AddClass(FADEOUT_START_FAST_CLASS);
-		jumpSpeedometer.speedometerPanel.TriggerClass(FADEOUT_CLASS);
-	}
+	*/
 
 	resetSpeedometerFadeouts() {
 		for (const [type, speedometers] of this.speedometers) {
@@ -535,9 +404,9 @@ class SpeedometerHandler {
 		}
 	}
 
-	// Display the given 3D speed on all zone-velocity speedometers. The absolute 3D magnitude
-	// is shown regardless of each speedometer's enabled-axes setting, and no comparison diff
-	// is shown (the engine doesn't expose a per-zone comparison velocity here).
+	// FORK: display the given 3D speed on all zone-velocity speedometers, driven by
+	// OnObservedTimerSegmentEffectiveStart from fork-speedometer-ext.ts. Absolute magnitude
+	// regardless of enabled axes; no comparison diff (engine exposes none per-segment here).
 	updateZoneSpeedometers(speed: float) {
 		const speedometers = this.speedometers.get(SpeedometerType.ZONE_VELOCITY);
 		if (!speedometers) return;
@@ -548,9 +417,12 @@ class SpeedometerHandler {
 	}
 
 	updateSpeedometersOfType(type: SpeedometerType, velocity: vec3 | number) {
-		// Jump velocity should only show in the starting area, before the timer's running (and
-		// so before/at the same time as the start velocity readout) - not for jumps mid-run.
-		if (type === SpeedometerType.JUMP_VELOCITY && this.timerState === TimerState.RUNNING) return;
+		// FORK: jump velocity is a starting-area readout only, not for jumps mid-run.
+		if (
+			type === SpeedometerType.JUMP_VELOCITY &&
+			MomentumTimerAPI.GetObservedTimerStatus().state === TimerState.RUNNING
+		)
+			return;
 
 		const speedometers = this.speedometers.get(type);
 		if (!speedometers) return;
@@ -651,16 +523,9 @@ class SpeedometerHandler {
 		return type !== SpeedometerType.OVERALL_VELOCITY && type !== SpeedometerType.ENERGY;
 	}
 
-	// Jump/start velocity are one-off readouts for a single jump/segment, so they should
-	// only stick around briefly rather than lingering like the other event speedometers.
+	// FORK: jump/start velocity are one-off readouts, so they only stick around briefly.
 	canSpeedometerTypeFadeOutFast(type: SpeedometerType): boolean {
 		return type === SpeedometerType.JUMP_VELOCITY || type === SpeedometerType.ZONE_VELOCITY;
-	}
-
-	updateYawSpeedDisplay() {
-		const yawSpeed = GameInterfaceAPI.GetSettingFloat('cl_yawspeed');
-		const sensitivity = GameInterfaceAPI.GetSettingFloat('sensitivity');
-		$.DispatchEvent('OnYawSpeedInfoUpdate', yawSpeed, sensitivity);
 	}
 
 	appendRangeColorProfileInfo(
@@ -717,19 +582,6 @@ class SpeedometerHandler {
 			const speedometersArray = this.speedometers.get(speedoType) ?? [];
 			speedometersArray.push(speedoObject);
 			this.speedometers.set(speedoType, speedometersArray);
-		}
-
-		// Lay the zone-start-velocity readout out beside the jump-speed readout's row, so the
-		// starting velocity appears next to the jump speed number instead of on its own line.
-		// Each keeps its own fade/visibility state (they appear at different times: jump speed
-		// on jumping, zone velocity only once the timer starts), only their position is shared.
-		const [jumpSpeedometer] = this.speedometers.get(SpeedometerType.JUMP_VELOCITY) ?? [];
-		const [zoneSpeedometer] = this.speedometers.get(SpeedometerType.ZONE_VELOCITY) ?? [];
-		if (jumpSpeedometer && zoneSpeedometer) {
-			const row = jumpSpeedometer.speedometerPanel.GetParent();
-			row.AddClass(SPEEDOMETER_ROW_CLASS);
-			zoneSpeedometer.speedometerPanel.AddClass(EVENT_MERGED_CLASS);
-			zoneSpeedometer.speedometerPanel.SetParent(row);
 		}
 
 		this.registerFadeoutEventHandlers();

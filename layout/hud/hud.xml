@@ -3,11 +3,6 @@
 		<include src="file://{resources}/styles/main.scss" />
 	</styles>
 
-	<scripts>
-		<include type="module" src="file://{scripts}/util/event-definition.ts" />
-		<include type="module" src="file://{scripts}/hud/yaw-speed-info.ts" />
-	</scripts>
-
 	<Hud class="hud" hittest="false" useglobalcontext="false">
 		<!-- Non-interactive HUD elements have hit test disabled for efficiency -->
 
@@ -56,14 +51,6 @@
         <MomHudJumpTiming />
         <HudHintText id="HudHintText" /> <!-- TODO: No idea how to even check what this does -->
 
-		<!-- Yaw sensitivity / mouse sensitivity readout, anchored near the bottom of the
-		     screen. Self-anchored (vertical-align: bottom, see styles/hud/hud.scss), so it is
-		     independent of wherever the customizer places the speedometer. -->
-		<Panel id="YawSpeedInfo" hittest="false" hittestchildren="false">
-			<Label id="SpeedometerYawSpeedLabel" text="" html="true" class="speedometer__yawspeed text-align-center" />
-			<Panel class="yaw-speed-info__bottom-spacer" />
-		</Panel>
-
         <!-- Old, broken hud elements, might get revived some day, not important -->
 		<!-- <HudBoneCounts id="BoneCount" /> TODO: HudTopCenter, not in customizer, probably gonna get nuked -->
         <!-- <MomHudStrafeSync id="StrafeSync" /> This is broken and probably not worth fixing --> 
@@ -93,6 +80,7 @@
 		</Panel>
 		
         <!-- This must be placed after all panels registered with hud customizer -->
+		<ForkYawSpeedInfo id="YawSpeedInfo" />
 		<HudCustomizer />
 
 		<!-- Make sure these are at the bottom to get the z-order right -->

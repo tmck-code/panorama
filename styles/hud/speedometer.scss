@@ -1,7 +1,3 @@
-// Upstream dropped this @use when it moved all speedometer styling to literals, but the fork's
-// additions below still reference config vars ($gray-900, ...).
-@use '../config' as *;
-
 .speedometers {
 	flow-children: down;
 	width: 320px;
@@ -9,62 +5,7 @@
 
 .speedometer {
 	align: center center;
-	flow-children: down;
-
-	&__main {
-		flow-children: right;
-		horizontal-align: center;
-	}
-
-	// Crouch indicator beside the speed number. Fixed 22px box so the speed label's
-	// position never depends on the indicator's current size.
-	&__duck-icon {
-		width: 26px;
-		height: 18px;
-		vertical-align: center;
-		margin-right: 4px;
-		horizontal-align: center;
-	}
-
-	// The crouch indicator itself: a single silhouette that shrinks and changes colour as the
-	// player crouches, hidden while standing. Height, colour and visibility are all driven
-	// per-frame in code, so no transitions here. Width matches the old ducktype 1 gauge's
-	// wider track thickness.
-	&__duck-bar-fill {
-		width: 7px;
-		height: 18px;
-		horizontal-align: center;
-		vertical-align: bottom;
-		// Matches the standing end of the code-driven white -> yellow ramp, so the first
-		// frame (and any static preview) doesn't flash the wrong colour.
-		background-color: rgba(255, 255, 255, 255);
-		transition-property: none;
-	}
-
-	// Balances the width of __duck-icon on the opposite side of the label, so the
-	// label itself stays horizontally centered whether or not the icon is shown.
-	&__duck-icon-spacer {
-		width: 30px;
-	}
-
-	&__yawspeed {
-		font-size: 8px;
-		font-weight: $speedometer-event-font-weight;
-		horizontal-align: center;
-		white-space: nowrap;
-
-		&__value {
-			color: $gray-900;
-		}
-
-		&__unit {
-			color: #a3a3a2;
-		}
-
-		&__separator {
-			color: $white;
-		}
-	}
+	flow-children: right;
 
 	&__axis {
 		font-weight: black;
@@ -88,27 +29,8 @@
 		transition-duration: 5s;
 		transition-timing-function: cubic-bezier(1, 0, 1, 0);
 	}
-	// Jump/start velocity readouts fade out much sooner than other event speedometers.
-	&--fade-start-fast {
-		transition-property: opacity;
-		transition-duration: $speedometer-event-fadeout-time-fast;
-		transition-timing-function: cubic-bezier(1, 0, 1, 0);
-	}
 	&--fadeout {
 		transition-duration: 0s;
 		opacity: 0;
 	}
-	// Applied to a speedometer that's been laid out beside another one (e.g. zone
-	// start velocity beside jump speed) instead of stacked below it on its own line.
-	&--merged {
-		margin-left: 8px;
-	}
-}
-
-// Wraps two speedometer panels that should sit side by side on the same line
-// instead of each getting their own row. Each child still owns its own
-// fade/visibility state; only their layout is shared.
-.speedometer-row {
-	align: center center;
-	flow-children: right;
 }

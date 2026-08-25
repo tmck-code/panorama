@@ -72,10 +72,6 @@ declare interface GlobalEventNameMap {
 
 	ColorPickerCancel: () => void;
 
-	/** Fired by speedometer.ts with the current yaw speed/sensitivity settings, for the yaw speed info label
-	 * to pick up across the MomHudSpeedometer custom control's isolated script context. */
-	OnYawSpeedInfoUpdate: (yawSpeed: float, sensitivity: float) => void;
-
 	/** Fired when the HUD customizer TS side is ready to accept registrations */
 	HudCustomizer_Ready: () => void;
 }
@@ -98,5 +94,4 @@ $.DefineEvent('MapSelector_HideLeaderboards', 0);
 $.DefineEvent('HudTabMenu_ForceClose', 0);
 $.DefineEvent('ColorPickerSave', 1, 'color');
 $.DefineEvent('ColorPickerCancel', 0);
-$.DefineEvent('OnYawSpeedInfoUpdate', 2);
 $.DefineEvent('HudCustomizer_Ready', 0);

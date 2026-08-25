@@ -1,0 +1,29 @@
+@use '../config' as *;
+
+// FORK: yaw speed / sensitivity readout (layout/hud/fork-yaw-speed-info.xml). Position, size and
+// colour are user-set through the HUD customizer; these are just the defaults.
+.fork-yaw-speed-info {
+	flow-children: down;
+	horizontal-align: center;
+	vertical-align: bottom;
+	margin-bottom: 108px;
+
+	&__label {
+		font-size: 8px;
+		font-weight: $speedometer-event-font-weight;
+		horizontal-align: center;
+		white-space: nowrap;
+	}
+
+	&__value {
+		color: $gray-900;
+	}
+
+	&__unit {
+		color: #a3a3a2;
+	}
+
+	&__separator {
+		color: $white;
+	}
+}

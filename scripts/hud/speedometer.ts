@@ -48,20 +48,18 @@ interface Range {
 	color: rgbaColor;
 }
 
-// Fork colour defaults, kept in sync with styles/config.scss ($speedometer-color-default /
-// -increase / -decrease). Upstream moved colouring from SCSS classes to inline styles driven by
-// this object, so the fork's palette has to live here to keep rendering the same: yellow main
-// number, greenish-yellow on gain, orange on loss. EVENT_FLAT is fork-only - upstream applies
-// AXIS_FLAT to every speedometer, but pre-customizer only `.speedometer__axis` was tinted yellow,
-// so one-shot event readouts (jump/zone/ramp/...) stay white when flat.
+// EVENT_FLAT is fork-only: upstream applies AXIS_FLAT to every speedometer, but one-shot event
+// readouts (jump/zone/ramp/...) should stay white when flat regardless of the customized axis
+// colour. The fork's palette itself lives in the checked-in HUD customizer preset
+// (cfg/hud/surf_surf.kv3), not here.
 const Colors = {
-	AXIS_FLAT: 'rgba(255, 238, 0, 1)',
-	AXIS_GAIN: 'rgba(179, 255, 0, 1)',
-	AXIS_LOSS: 'rgba(255, 166, 0, 1)',
+	AXIS_FLAT: 'rgba(255, 255, 255, 1)',
+	AXIS_GAIN: 'rgba(24, 150, 211, 1)',
+	AXIS_LOSS: 'rgba(255, 106, 106, 1)',
 	EVENT_FLAT: 'rgba(255, 255, 255, 1)',
 	COMPARISON_FLAT: 'rgba(255, 255, 255, 1)',
-	COMPARISON_GAIN: 'rgba(179, 255, 0, 1)',
-	COMPARISON_LOSS: 'rgba(255, 166, 0, 1)'
+	COMPARISON_GAIN: 'rgba(24, 150, 211, 1)',
+	COMPARISON_LOSS: 'rgba(255, 106, 106, 1)'
 };
 
 const Fonts = {

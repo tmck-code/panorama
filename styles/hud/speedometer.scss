@@ -1,5 +1,5 @@
 // Upstream dropped this @use when it moved all speedometer styling to literals, but the fork's
-// additions below still reference config vars ($speedometer-color-default, $gray-900, ...).
+// additions below still reference config vars ($gray-900, ...).
 @use '../config' as *;
 
 .speedometers {
@@ -68,7 +68,6 @@
 
 	&__axis {
 		font-weight: black;
-		color: $speedometer-color-default;
 		&__comparison {
 			font-weight: bold;
 		}

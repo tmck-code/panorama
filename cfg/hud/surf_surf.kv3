@@ -1,0 +1,291 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	ShowPos = 
+	{
+		enabled = true
+		offsetX = 800
+		offsetY = 0
+		width = 320
+		height = null
+		dynamicStyles = 
+		{
+			fontStyling = null
+			font = "Roboto Mono"
+			fontSize = 16
+			fontColor = "$fontColor"
+			backgroundColor = "rgba(0, 0, 0, 0)"
+			alignText = "center"
+		}
+	}
+	MapInfo = 
+	{
+		enabled = false
+		offsetX = 1560
+		offsetY = 10
+		width = 350
+		height = null
+		dynamicStyles = 
+		{
+			fontStyling = null
+			font = "$fontSecondary"
+			fontSize = 20
+			fontColor = "$fontColor"
+			showLabels = null
+			showVersion = true
+			showMapName = true
+			showGamemode = true
+			showAuthors = true
+			showTier = true
+			showMapType = true
+			gap = 0
+			alignText = "right"
+		}
+	}
+	SpecInfo = 
+	{
+		enabled = false
+		offsetX = 1605
+		offsetY = 130
+		width = 300
+		height = null
+		dynamicStyles = 
+		{
+			showLabels = "numberAndList"
+			maxPlayerCount = 5
+			fontStyling = null
+			font = "$fontPrimary"
+			fontSize = 20
+			fontColor = "$fontColor"
+			backgroundColor = "rgba(0, 0, 0, 0)"
+			alignText = "right"
+		}
+	}
+	Chat = 
+	{
+		enabled = true
+		offsetX = 23.249999307096027
+		offsetY = 960
+		width = 303.74999094754488
+		height = 96.49999950826168
+		dynamicStyles = 
+		{
+			showTyping = false
+			backgroundColor = "rgba(0,0,0,0)"
+			scale = 10
+			innerGap = 6
+			borderRadius = 1
+		}
+	}
+	Status = 
+	{
+		enabled = false
+		offsetX = 728
+		offsetY = 779
+		width = 463
+		height = null
+		dynamicStyles = 
+		{
+			fontStyling = null
+			font = "$fontPrimary"
+			fontSize = 17
+			fontColor = "$fontColor"
+			backgroundColor = "rgba(0,0,0,0)"
+			alignText = "center"
+		}
+	}
+	Timer = 
+	{
+		enabled = false
+		offsetX = 799.8750047720968
+		offsetY = 1016.250001899898
+		width = 320
+		height = null
+		dynamicStyles = 
+		{
+			showComparisons = false
+			fontStyling = null
+			timerFontStyling = null
+			timerFont = "$fontPrimary"
+			timerFontSize = 30
+			comparisonFontStyling = null
+			comparisonFont = "$fontPrimary"
+			comparisonFontSize = 24
+			colors = null
+			timerColors = null
+			inactiveColor = "rgba(200, 200, 200, 1)"
+			primedColor = "rgba(200, 200, 200, 1)"
+			runningColor = "$fontColor"
+			finishedColor = "rgba(122, 238, 122, 1)"
+			comparisonColors = null
+			comparisonGainColor = "rgba(179, 255, 0, 1)"
+			comparisonLossColor = "rgba(255, 166, 0, 1)"
+			alignText = "center"
+			backgroundColor = "rgba(0, 0, 0, 0)"
+		}
+	}
+	Comparisons = 
+	{
+		enabled = false
+		offsetX = 60
+		offsetY = 200
+		width = null
+		height = null
+		dynamicStyles = 
+		{
+			index = null
+			indexFont = "$fontSecondary"
+			indexSize = 22
+			indexColor = "rgba(224, 224, 224, 1)"
+			time = null
+			timeFont = "$fontPrimary"
+			timeSize = 22
+			timeColor = "$fontColor"
+			comparisons = null
+			comparisonsFont = "$fontPrimary"
+			comparisonsFontSize = 22
+			comparisonsColors = null
+			comparisonsNeutral = "rgba(210, 210, 210, 1)"
+			comparisonsAheadGain = "$gainColor"
+			comparisonsAheadLoss = "rgba(133, 187, 214, 1)"
+			comparisonsBehindGain = "rgba(255, 158, 158, 1)"
+			comparisonsBehindLoss = "$lossColor"
+		}
+	}
+	Speedometer = 
+	{
+		enabled = true
+		offsetX = 799.8750047720968
+		offsetY = 585.7499825432902
+		width = 320
+		height = null
+		dynamicStyles = 
+		{
+			fontStyling = null
+			mainFontStyling = null
+			mainAxisFontStyling = null
+			mainAxisFont = "$fontPrimary"
+			mainAxisFontSize = 26
+			mainComparisonFontStyling = null
+			mainComparisonFont = "$fontPrimary"
+			mainComparisonFontSize = 22
+			eventFontStyling = null
+			eventAxisFontStyling = null
+			eventAxisFont = "$fontPrimary"
+			eventAxisFontSize = 18
+			eventComparisonFontStyling = null
+			eventComparisonFont = "$fontPrimary"
+			eventComparisonFontSize = 16
+			colors = null
+			axisSpeedometerColors = null
+			axisFlatColor = "rgba(226,244,61,1)"
+			axisGainColor = "rgba(34,209,25,1)"
+			axisLossColor = "rgba(221,97,97,1)"
+			comparisonSpeedometerColors = null
+			comparisonFlatColor = "rgba(255, 255, 255, 1)"
+			comparisonGainColor = "rgba(179, 255, 0, 1)"
+			comparisonLossColor = "rgba(255, 166, 0, 1)"
+			backgroundColor = "rgba(0, 0, 0, 0)"
+		}
+	}
+	WeaponSelection = 
+	{
+		enabled = false
+		offsetX = 1570
+		offsetY = 481
+		width = null
+		height = null
+		dynamicStyles = 
+		{
+			fadeout = true
+			showNotch = true
+			showKeybinds = true
+			keybindsStyling = null
+			keybindsFont = "$fontSecondary"
+			keybindsFontSize = 24
+			keybindsFontColor = "rgba(213, 213, 213, 1)"
+			keybindsFontActiveColor = "$fontColor"
+			weaponNameStyling = null
+			weaponNameFont = "$fontSecondary"
+			weaponNameFontSize = 24
+			weaponNameFontColor = "$fontColor"
+			weaponNameFontActiveColor = "rgba(87, 200, 255, 1)"
+			notchStyling = null
+			notchWidth = 4
+			notchColor = "rgba(87, 200, 255, 1)"
+		}
+	}
+	StrafeTrainer = 
+	{
+		enabled = false
+		offsetX = 810.0000044703483
+		offsetY = 440.9999868571762
+		width = 300
+		height = 80
+		dynamicStyles = 
+		{
+			displayMode = "half_width"
+			indicatorPercentage = 90
+			synchronizerSpeed = 10
+			needleWidth = 1
+			needleColor = "rgba(0, 0, 0, 0.75)"
+			averagingWindow = 5
+			minSpeed = 200
+			dynamicMode = true
+			flipDirections = false
+			showLabels = null
+			showJumpCount = false
+			showTakeoffSpeed = false
+			showYawRatio = false
+			showGain = true
+			fontStyling = null
+			font = "$fontPrimary"
+			fontSize = 20
+			fontColor = "$fontColor"
+			colors = null
+			backgroundColor = "rgba(38, 55, 62, 1)"
+			colorStats = false
+			colorByGain = true
+			strafeBarColor = 
+			[
+				"rgba(178, 178, 178, 1)",
+				"rgba(255, 255, 255, 1)",
+			]
+			gainGradients = null
+			gainExtra = 
+			[
+				"rgba(24, 150, 211, 1)",
+				"rgba(87, 200, 255, 1)",
+			]
+			gainPerfect = 
+			[
+				"rgba(87, 200, 255, 1)",
+				"rgba(113, 240, 255, 1)",
+			]
+			gainGood = 
+			[
+				"rgba(21, 152, 86, 1)",
+				"rgba(122, 238, 122, 1)",
+			]
+			gainSlow = 
+			[
+				"rgba(248, 222, 74, 1)",
+				"rgba(255, 238, 0, 1)",
+			]
+			gainNeutral = 
+			[
+				"rgba(178, 178, 178, 1)",
+				"rgba(255, 255, 255, 1)",
+			]
+			gainLoss = 
+			[
+				"rgba(220, 116, 13, 1)",
+				"rgba(255, 188, 0, 1)",
+			]
+			gainStop = 
+			[
+				"rgba(211, 24, 24, 1)",
+				"rgba(255, 87, 87, 1)",
+			]
+		}
+	}
+}

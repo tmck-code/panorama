@@ -21,11 +21,22 @@ class ForkYawSpeedInfoHandler {
 	valueColor: string | undefined;
 
 	constructor() {
+		// Tick directly rather than via the customizer's `unhandledEvents`: those are only wired once the
+		// component registers successfully, and the readout must work even if registration is refused.
+		$.RegisterForUnhandledEvent('HudThink', () => this.update());
+
 		registerHUDCustomizerComponent(this.panels.cp, {
 			name: 'Yaw / Sensitivity (fork)',
 			resizeX: true,
 			resizeY: false,
-			unhandledEvents: { event: 'HudThink', callbackFn: () => this.update() },
+			// Not in the game-shipped cfg/hud/*_default.kv3, so supply the defaults here (1920x1080 units):
+			// bottom-centre, 108px above the bottom edge, matching styles/fork/yaw-speed-info.scss.
+			defaultLayout: {
+				offsetX: 800,
+				offsetY: 960,
+				width: 320,
+				dynamicStyles: { fontSize: 8, valueColor: 'rgba(200, 200, 200, 1)' }
+			},
 			dynamicStyles: {
 				fontSize: {
 					name: $.Localize('#Customizer_FontSize'),

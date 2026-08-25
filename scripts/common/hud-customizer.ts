@@ -258,6 +258,23 @@ export interface CustomizerComponentProperties {
 
 	/** Runs once, after all {@link dynamicStyles} have been initialized */
 	postInit?: () => void;
+
+	/**
+	 * FORK: fallback default layout for components that have no entry in the game-shipped
+	 * cfg/hud/hud_default.kv3 / <gamemode>_default.kv3 (which a mounted panorama tree cannot add to).
+	 * Offsets are in 1920x1080 design units, matching the kv3 files. Ignored when the kv3 has an entry.
+	 */
+	defaultLayout?: CustomizerFallbackLayout;
+}
+
+/** @see CustomizerComponentProperties.defaultLayout */
+export interface CustomizerFallbackLayout {
+	enabled?: boolean;
+	offsetX: number;
+	offsetY: number;
+	width?: number;
+	height?: number;
+	dynamicStyles?: Record<StyleID, any>;
 }
 
 export interface IHudCustomizerHandler {

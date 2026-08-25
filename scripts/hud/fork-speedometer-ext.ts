@@ -57,11 +57,7 @@ interface UpstreamSpeedometerHandler {
 }
 
 function getUpstreamHandler(): UpstreamSpeedometerHandler | undefined {
-	const handler = $.GetContextObject()['SpeedometerHandler'] as UpstreamSpeedometerHandler | undefined;
-	if (!handler) {
-		$.Warning('fork-speedometer-ext: SpeedometerHandler not found in panel context; fork extensions disabled');
-	}
-	return handler;
+	return $.GetContextObject()['SpeedometerHandler'] as UpstreamSpeedometerHandler | undefined;
 }
 
 class ForkSpeedometerExt {
@@ -109,12 +105,22 @@ class ForkSpeedometerExt {
 
 		// Per-frame tick, independent of upstream's OnSpeedometerUpdate handler.
 		$.RegisterForUnhandledEvent('HudThink', () => this.updateDuckIndicator());
+
+		// If upstream already built its panels before we got here (event fired before this module was
+		// evaluated), decorate them now; otherwise the rebuild events above will do it.
+		if (handler.speedometers.size > 0) this.onSpeedometersRebuilt(true);
+
+		$.Msg(
+			`fork-speedometer-ext: loaded (${handler.speedometers.size} speedometer type(s) already built, ` +
+				`${this.duckBarFills.length} duck bar(s))`
+		);
 	}
 
 	onSpeedometersRebuilt(success: boolean) {
 		if (!success) return;
 		this.createDuckIndicators();
 		this.mergeJumpAndZoneRows();
+		$.Msg(`fork-speedometer-ext: decorated speedometers (${this.duckBarFills.length} duck bar(s))`);
 	}
 
 	// Crouch indicator DOM: [icon > fill] label [spacer] comparison, inside upstream's
@@ -125,12 +131,20 @@ class ForkSpeedometerExt {
 		const speedometers = this.handler.speedometers.get(SpeedometerType.OVERALL_VELOCITY) ?? [];
 		for (const speedometer of speedometers) {
 			const row = speedometer.speedometerPanel;
+			// Idempotent: upstream recreates its panels on rebuild, but guard against being called twice
+			// for the same panel (e.g. eager decoration followed by a late settings-loaded event).
+			if (row.FindChildTraverse(DUCK_ICON_CLASS)) continue;
 
-			const icon = $.CreatePanel('Panel', row, '', { class: DUCK_ICON_CLASS });
-			const fill = $.CreatePanel('Panel', icon, '', { class: `${DUCK_BAR_FILL_CLASS} ${HIDDEN_CLASS}` });
+			// Class set explicitly rather than via CreatePanel's property bag, which is not reliably applied.
+			const icon = $.CreatePanel('Panel', row, DUCK_ICON_CLASS);
+			icon.AddClass(DUCK_ICON_CLASS);
+			const fill = $.CreatePanel('Panel', icon, '');
+			fill.AddClass(DUCK_BAR_FILL_CLASS);
+			fill.AddClass(HIDDEN_CLASS);
 			row.MoveChildBefore(icon, speedometer.speedometerLabel);
 
-			const spacer = $.CreatePanel('Panel', row, '', { class: DUCK_SPACER_CLASS });
+			const spacer = $.CreatePanel('Panel', row, '');
+			spacer.AddClass(DUCK_SPACER_CLASS);
 			row.MoveChildAfter(spacer, speedometer.speedometerLabel);
 
 			this.duckBarFills.push(fill);
@@ -249,10 +263,28 @@ class ForkSpeedometerExt {
 	}
 }
 
-const upstreamHandler = getUpstreamHandler();
-if (upstreamHandler) {
+// Install once per panel context. Include order within <scripts> should put speedometer.ts first, but if
+// upstream's handler isn't there yet, retry each frame (bounded) rather than giving up.
+function installForkSpeedometerExt(attempt = 0): boolean {
 	const contextObject = $.GetContextObject();
-	if (!('ForkSpeedometerExt' in contextObject)) {
+	if ('ForkSpeedometerExt' in contextObject) return true;
+
+	const upstreamHandler = getUpstreamHandler();
+	if (upstreamHandler) {
 		contextObject['ForkSpeedometerExt'] = new ForkSpeedometerExt(upstreamHandler);
+		return true;
 	}
+
+	if (attempt >= 300) {
+		$.Warning('fork-speedometer-ext: SpeedometerHandler never appeared in panel context; fork extensions disabled');
+		return false;
+	}
+	if (attempt === 0) $.Msg('fork-speedometer-ext: SpeedometerHandler not ready yet, deferring to HudThink');
+	const handle = $.RegisterForUnhandledEvent('HudThink', () => {
+		$.UnregisterForUnhandledEvent('HudThink', handle);
+		installForkSpeedometerExt(attempt + 1);
+	});
+	return false;
 }
+
+installForkSpeedometerExt();

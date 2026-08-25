@@ -135,7 +135,16 @@ class Component {
 
 	/** @see registerHUDCustomizerComponent */
 	static register(panel: GenericPanel, properties: CustomizerComponentProperties): Component {
-		if (!HudCustomizerHandler.defaultLayout[panel.id]) return null;
+		if (!HudCustomizerHandler.defaultLayout[panel.id]) {
+			// FORK: components absent from the shipped default kv3s may supply their own defaults.
+			if (!properties.defaultLayout) return null;
+			const fallback = { enabled: true, ...properties.defaultLayout } as ComponentLayout;
+			HudCustomizerHandler.defaultLayout[panel.id] = fallback;
+			HudCustomizerHandler.presetLayout[panel.id] = mergeDeep(
+				{ ...fallback },
+				{ ...(HudCustomizerHandler.presetLayout[panel.id] ?? {}) }
+			) as ComponentLayout;
+		}
 		return new Component(panel, properties);
 	}
 

@@ -21,6 +21,7 @@ class ForkYawSpeedInfoHandler {
 	valueColor: string | undefined;
 
 	constructor() {
+		$.Msg('fork-yaw-speed-info: constructed');
 		// Tick directly rather than via the customizer's `unhandledEvents`: those are only wired once the
 		// component registers successfully, and the readout must work even if registration is refused.
 		$.RegisterForUnhandledEvent('HudThink', () => this.update());
@@ -37,6 +38,7 @@ class ForkYawSpeedInfoHandler {
 				width: 320,
 				dynamicStyles: { fontSize: 8, valueColor: 'rgba(200, 200, 200, 1)' }
 			},
+			postInit: () => $.Msg('fork-yaw-speed-info: registered with HUD customizer'),
 			dynamicStyles: {
 				fontSize: {
 					name: $.Localize('#Customizer_FontSize'),
@@ -70,6 +72,8 @@ class ForkYawSpeedInfoHandler {
 			`<font ${valueAttrs}>${sensitivity.toFixed(2)}</font> ` +
 			`<font class="${UNIT_CLASS}">sens</font>`;
 		if (text === this.lastText) return;
+		if (this.lastText === '')
+			$.Msg(`fork-yaw-speed-info: first update: ${yawSpeed.toFixed(0)} yaw | ${sensitivity.toFixed(2)} sens`);
 		this.lastText = text;
 		this.panels.label.text = text;
 	}

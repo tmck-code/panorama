@@ -116,11 +116,20 @@ class ForkSpeedometerExt {
 		);
 	}
 
+	lastDecorateSummary = '';
+
+	// Upstream rebuilds (RemoveAndDeleteChildren + fresh panels) on every settings load/save, which
+	// the game fires in Loaded+Saved pairs whenever settings are written; each call here is cheap
+	// (a few CreatePanel/SetParent calls) and only logs when the outcome changes.
 	onSpeedometersRebuilt(success: boolean) {
 		if (!success) return;
 		this.createDuckIndicators();
-		this.mergeJumpAndZoneRows();
-		$.Msg(`fork-speedometer-ext: decorated speedometers (${this.duckBarFills.length} duck bar(s))`);
+		const merged = this.mergeJumpAndZoneRows();
+		const summary = `${this.duckBarFills.length} duck bar(s), jump+zone row ${merged ? 'merged' : 'not merged'}`;
+		if (summary !== this.lastDecorateSummary) {
+			this.lastDecorateSummary = summary;
+			$.Msg(`fork-speedometer-ext: decorated speedometers (${summary})`);
+		}
 	}
 
 	// Crouch indicator DOM: [icon > fill] label [spacer] comparison, inside upstream's
@@ -155,15 +164,16 @@ class ForkSpeedometerExt {
 	// starting velocity appears next to the jump speed number instead of on its own line.
 	// Each keeps its own fade/visibility state (they appear at different times: jump speed
 	// on jumping, zone velocity only once the timer starts), only their position is shared.
-	mergeJumpAndZoneRows() {
+	mergeJumpAndZoneRows(): boolean {
 		const [jumpSpeedometer] = this.handler.speedometers.get(SpeedometerType.JUMP_VELOCITY) ?? [];
 		const [zoneSpeedometer] = this.handler.speedometers.get(SpeedometerType.ZONE_VELOCITY) ?? [];
-		if (!jumpSpeedometer || !zoneSpeedometer) return;
+		if (!jumpSpeedometer || !zoneSpeedometer) return false;
 
 		const row = jumpSpeedometer.speedometerPanel.GetParent();
 		row.AddClass(SPEEDOMETER_ROW_CLASS);
 		zoneSpeedometer.speedometerPanel.AddClass(EVENT_MERGED_CLASS);
-		zoneSpeedometer.speedometerPanel.SetParent(row);
+		if (zoneSpeedometer.speedometerPanel.GetParent() !== row) zoneSpeedometer.speedometerPanel.SetParent(row);
+		return true;
 	}
 
 	// Crouch indicator: a silhouette bar that shrinks and changes colour as the player
@@ -236,7 +246,10 @@ class ForkSpeedometerExt {
 	// splits serialisation as the `{x, y, z}` vec3 the typings promise, so sample the live
 	// velocity instead - this event fires at the segment start, so it's the same moment.
 	onSegmentEffectiveStart() {
-		this.handler.updateZoneSpeedometers(magnitude(MomentumPlayerAPI.GetVelocity()));
+		const speed = magnitude(MomentumPlayerAPI.GetVelocity());
+		const zoneCount = this.handler.speedometers.get(SpeedometerType.ZONE_VELOCITY)?.length ?? 0;
+		$.Msg(`fork-speedometer-ext: segment effective start, speed ${Math.round(speed)}, ${zoneCount} zone speedo(s)`);
+		this.handler.updateZoneSpeedometers(speed);
 		// Jump velocity is only ever relevant leading up to a segment start; sync its fadeout
 		// with the zone velocity that just appeared so the two fade out together instead of the
 		// jump number disappearing first.
@@ -246,6 +259,7 @@ class ForkSpeedometerExt {
 	// Reset the readout whenever the run isn't actively going so a stale number doesn't linger.
 	onTimerStateChange() {
 		const { state } = MomentumTimerAPI.GetObservedTimerStatus();
+		$.Msg(`fork-speedometer-ext: timer state -> ${TimerState[state]}`);
 		if (state === TimerState.DISABLED || state === TimerState.PRIMED) {
 			this.handler.resetSpeedometerFadeouts();
 		}

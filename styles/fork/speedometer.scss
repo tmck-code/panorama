@@ -34,10 +34,18 @@ $speedometer-event-fadeout-time-fast: 1s;
 
 .speedometer {
 	// Jump/start velocity readouts fade out much sooner than other event speedometers.
+	// Mirrors upstream's .speedometer--fade-start with a shorter duration.
 	&--fade-start-fast {
 		transition-property: opacity;
 		transition-duration: $speedometer-event-fadeout-time-fast;
 		transition-timing-function: cubic-bezier(1, 0, 1, 0);
+	}
+	// Cascade guard: this file is @use'd after styles/hud, so the rule above would otherwise
+	// override .speedometer--fadeout's `transition-duration: 0s` during the TriggerClass frame
+	// (upstream's --fade-start only works because it precedes --fadeout in the same file).
+	// Keep the fadeout snap instant whenever both classes are present, independent of @use order.
+	&--fade-start-fast.speedometer--fadeout {
+		transition-duration: 0s;
 	}
 	// Applied to a speedometer that's been laid out beside another one (e.g. zone
 	// start velocity beside jump speed) instead of stacked below it on its own line.

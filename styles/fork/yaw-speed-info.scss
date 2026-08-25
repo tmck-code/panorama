@@ -1,12 +1,12 @@
 @use '../config' as *;
 
-// FORK: yaw speed / sensitivity readout (layout/hud/fork-yaw-speed-info.xml). Position, size and
-// colour are user-set through the HUD customizer; these are just the defaults.
+// FORK: yaw speed / sensitivity readout (layout/hud/fork-yaw-speed-info.xml). Position and width are
+// set on the root panel by the HUD customizer (`position: x y 0` + `width`, top-left anchored, like
+// every other customizer component). The root must therefore NOT carry its own alignment/margins:
+// Panorama applies `position` on top of `vertical-align: bottom`, which put the panel 960px below the
+// screen edge. Defaults (bottom-centre, 108px up) live in fork-yaw-speed-info.ts's defaultLayout.
 .fork-yaw-speed-info {
 	flow-children: down;
-	horizontal-align: center;
-	vertical-align: bottom;
-	margin-bottom: 108px;
 
 	&__label {
 		font-size: 8px;

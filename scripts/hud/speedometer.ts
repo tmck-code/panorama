@@ -1,7 +1,6 @@
 import { PanelHandler } from 'util/module-helpers';
 import { tupleToRgbaString } from 'util/colors';
 import { SpeedometerColorType, SpeedometerType } from 'common/speedometer';
-import { TimerState } from 'common/timer';
 
 import { CustomizerPropertyType, registerHUDCustomizerComponent } from 'common/hud-customizer';
 import { getTextShadowFast } from 'common/hud-customizer';
@@ -404,6 +403,9 @@ class SpeedometerHandler {
 		}
 	}
 
+	/** FORK: whether jump-velocity readouts accept updates; owned by fork-speedometer-ext.ts. */
+	jumpReadoutArmed = true;
+
 	// FORK: display the given 3D speed on all zone-velocity speedometers, driven by
 	// OnObservedTimerSegmentEffectiveStart from fork-speedometer-ext.ts. Absolute magnitude
 	// regardless of enabled axes; no comparison diff (engine exposes none per-segment here).
@@ -418,11 +420,8 @@ class SpeedometerHandler {
 
 	updateSpeedometersOfType(type: SpeedometerType, velocity: vec3 | number) {
 		// FORK: jump velocity is a starting-area readout only, not for jumps mid-run.
-		if (
-			type === SpeedometerType.JUMP_VELOCITY &&
-			MomentumTimerAPI.GetObservedTimerStatus().state === TimerState.RUNNING
-		)
-			return;
+		// fork-speedometer-ext.ts arms/disarms this around each segment start.
+		if (type === SpeedometerType.JUMP_VELOCITY && !this.jumpReadoutArmed) return;
 
 		const speedometers = this.speedometers.get(type);
 		if (!speedometers) return;

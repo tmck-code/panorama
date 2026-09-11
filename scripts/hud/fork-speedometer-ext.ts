@@ -7,7 +7,7 @@
  * jump-velocity gating, zone speedometer body, EVENT_FLAT colour) remain as a minimal patch in
  * speedometer.ts and are marked with "FORK:" comments there.
  */
-import { magnitude } from 'util/math';
+import { magnitude, magnitude2D } from 'util/math';
 import { RgbaTuple, tupleToRgbaString } from 'util/colors';
 import { SpeedometerType } from 'common/speedometer';
 import { TimerState } from 'common/timer';
@@ -37,6 +37,11 @@ const DUCK_COLOR_WHITE: RgbaTuple = [255, 255, 255, 255];
 const DUCK_COLOR_YELLOW: RgbaTuple = [255, 221, 0, 255];
 const DUCK_BAR_RAMP: readonly [RgbaTuple, RgbaTuple] = [DUCK_COLOR_WHITE, DUCK_COLOR_YELLOW];
 
+// A segment start sampled while the player is falling with (near) no horizontal speed is a
+// mid-air respawn dropping onto the start platform, not a real start. Real starts always carry
+// horizontal speed; a respawn drop only has gravity.
+const RESPAWN_DROP_MAX_HORIZONTAL_SPEED = 30;
+
 // The bar's silhouette height in px, standing -> fully crouched.
 const DUCK_BAR_HEIGHT_STANDING = 18;
 const DUCK_BAR_HEIGHT_CROUCHED = 7.5;
@@ -54,6 +59,7 @@ interface UpstreamSpeedometerHandler {
 	speedometers: Map<SpeedometerType, UpstreamSpeedometer[]>;
 	resetSpeedometerFadeouts(): void;
 	updateZoneSpeedometers(speed: float): void;
+	jumpReadoutArmed: boolean;
 }
 
 function getUpstreamHandler(): UpstreamSpeedometerHandler | undefined {
@@ -92,6 +98,10 @@ class ForkSpeedometerExt {
 		$.RegisterForUnhandledEvent('OnObservedTimerSegmentEffectiveStart', () => this.onSegmentEffectiveStart());
 		// Still needed purely to clear a stale readout when the run isn't going.
 		$.RegisterForUnhandledEvent('OnObservedTimerStateChange', () => this.onTimerStateChange());
+		// Reaching the next stage's start zone puts the player back in a starting area, so the
+		// jump readout is relevant again. The timer state stays RUNNING across stages, which is
+		// why gating on it froze the jump number from stage 2 onwards.
+		$.RegisterForUnhandledEvent('OnObservedTimerCheckpointProgressed', () => this.armJumpReadout('checkpoint'));
 
 		// Upstream rebuilds every speedometer panel on each of these; our listeners are registered after
 		// upstream's (this module is included second) so they run once the new panels exist.
@@ -104,7 +114,10 @@ class ForkSpeedometerExt {
 		}
 
 		// Per-frame tick, independent of upstream's OnSpeedometerUpdate handler.
-		$.RegisterForUnhandledEvent('HudThink', () => this.updateDuckIndicator());
+		$.RegisterForUnhandledEvent('HudThink', () => {
+			this.updateDuckIndicator();
+			this.detectStandstill();
+		});
 
 		// If upstream already built its panels before we got here (event fired before this module was
 		// evaluated), decorate them now; otherwise the rebuild events above will do it.
@@ -246,10 +259,22 @@ class ForkSpeedometerExt {
 	// splits serialisation as the `{x, y, z}` vec3 the typings promise, so sample the live
 	// velocity instead - this event fires at the segment start, so it's the same moment.
 	onSegmentEffectiveStart() {
-		const speed = magnitude(MomentumPlayerAPI.GetVelocity());
+		const velocity = MomentumPlayerAPI.GetVelocity();
+		const speed = magnitude(velocity);
+		if (velocity.z < 0 && magnitude2D(velocity) < RESPAWN_DROP_MAX_HORIZONTAL_SPEED) {
+			// Mid-air respawn falling through the start zone onto the platform; the real start
+			// fires again once the player leaves the zone for real. Keep the jump readout live
+			// since they're about to jump out of the start area.
+			$.Msg(`fork-speedometer-ext: ignoring respawn drop at segment start, speed ${Math.round(speed)}`);
+			this.armJumpReadout('respawn drop');
+			return;
+		}
 		const zoneCount = this.handler.speedometers.get(SpeedometerType.ZONE_VELOCITY)?.length ?? 0;
 		$.Msg(`fork-speedometer-ext: segment effective start, speed ${Math.round(speed)}, ${zoneCount} zone speedo(s)`);
 		this.handler.updateZoneSpeedometers(speed);
+		// The jump that carried the player out of the start area has been shown; jumps mid-run
+		// aren't of interest until they're back in a starting area.
+		this.disarmJumpReadout();
 		// Jump velocity is only ever relevant leading up to a segment start; sync its fadeout
 		// with the zone velocity that just appeared so the two fade out together instead of the
 		// jump number disappearing first.
@@ -262,7 +287,29 @@ class ForkSpeedometerExt {
 		$.Msg(`fork-speedometer-ext: timer state -> ${TimerState[state]}`);
 		if (state === TimerState.DISABLED || state === TimerState.PRIMED) {
 			this.handler.resetSpeedometerFadeouts();
+			this.armJumpReadout('timer reset');
 		}
+	}
+
+	// A respawn to a stage start (death, `mom_restart_stage`) fires no event, but it does put
+	// the player at a standstill - either standing on the platform or falling straight down
+	// with no horizontal speed. Mid-run the player essentially never has zero horizontal speed,
+	// so treat it as "back in a starting area" and re-arm the jump readout.
+	detectStandstill() {
+		if (this.handler.jumpReadoutArmed) return;
+		if (magnitude2D(MomentumPlayerAPI.GetVelocity()) < RESPAWN_DROP_MAX_HORIZONTAL_SPEED) {
+			this.armJumpReadout('standstill');
+		}
+	}
+
+	armJumpReadout(reason: string) {
+		if (this.handler.jumpReadoutArmed) return;
+		this.handler.jumpReadoutArmed = true;
+		$.Msg(`fork-speedometer-ext: jump readout armed (${reason})`);
+	}
+
+	disarmJumpReadout() {
+		this.handler.jumpReadoutArmed = false;
 	}
 
 	// Restart the jump speedometer's fadeout timer in lockstep with the zone/start velocity

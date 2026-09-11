@@ -1,0 +1,36 @@
+@use '../config' as *;
+
+// FORK: practice timer (layout/hud/fork-practice-timer.xml). Sits directly under the official timer, which
+// is centred and ~1/3 down the screen in hud_default.kv3; not a customizer component, so positioned here.
+.fork-practice-timer {
+	flow-children: down;
+	width: 100%;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 380px;
+	transition: opacity 0.15s ease-out 0s;
+
+	&--hidden {
+		opacity: 0;
+	}
+
+	// User opt-out (`setinfo fork_pt_off 1`), independent of run state.
+	&--off {
+		visibility: collapse;
+	}
+
+	// Run ended (end zone / official FINISHED): frozen total, brighter and green like the official timer.
+	&--finished &__label {
+		color: #7ef29a;
+		font-size: 26px;
+		text-shadow: 0 0 8px 2 rgba(60, 255, 120, 0.6);
+	}
+
+	&__label {
+		horizontal-align: center;
+		font-size: 22px;
+		font-weight: bold;
+		color: #f0c674;
+		text-shadow: 0 0 4px 1 rgba(0, 0, 0, 0.9);
+	}
+}

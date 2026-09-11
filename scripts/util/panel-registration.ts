@@ -30,6 +30,7 @@ declare interface PanelTagNameMap {
 	MomHudAhopSprint: MomHudAhopSprint;
 	ForkYawSpeedInfo: ForkYawSpeedInfo;
 	ForkSavestateAuto: ForkSavestateAuto;
+	ForkPracticeTimer: ForkPracticeTimer;
 	ToastContainer: ToastContainer;
 	ToastGeneric: ToastGeneric;
 	Gallery: Gallery;
@@ -105,3 +106,6 @@ UiToolkitAPI.RegisterHUDPanel2d('ForkYawSpeedInfo', 'file://{resources}/layout/h
 
 declare interface ForkSavestateAuto extends AbstractHudPanel<'ForkSavestateAuto'> {}
 UiToolkitAPI.RegisterHUDPanel2d('ForkSavestateAuto', 'file://{resources}/layout/hud/fork-savestate-auto.xml');
+
+declare interface ForkPracticeTimer extends AbstractHudPanel<'ForkPracticeTimer'> {}
+UiToolkitAPI.RegisterHUDPanel2d('ForkPracticeTimer', 'file://{resources}/layout/hud/fork-practice-timer.xml');

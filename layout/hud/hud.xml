@@ -27,6 +27,9 @@
         <MomHudChat id="Chat" />
         <MomHudStatus id="Status" />
 		<MomHudTimer id="Timer" />
+		<!-- FORK: practice timer that survives savestate loads (see scripts/hud/fork-practice-timer.ts) -->
+		<!-- FORK: practice timer disabled for now - re-enable by restoring the line below.
+		<ForkPracticeTimer id="PracticeTimer" /> -->
         <HudComparisons id="Comparisons" />
         <MomHudSpeedometer id="Speedometer" />
         <MomHudKeypress id="KeyPress"/>

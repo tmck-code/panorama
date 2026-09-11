@@ -1,0 +1,13 @@
+<root>
+	<styles>
+		<include src="file://{resources}/styles/main.scss" />
+	</styles>
+
+	<scripts>
+		<include type="module" src="file://{scripts}/hud/fork-practice-timer.ts" />
+	</scripts>
+
+	<ForkPracticeTimer class="fork-practice-timer">
+		<Label class="fork-practice-timer__label" text="P {g:time:practice_time}" />
+	</ForkPracticeTimer>
+</root>

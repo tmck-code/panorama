@@ -178,24 +178,10 @@ $transition: 0.125s ease-out 0s;
 			width: 100%;
 			height: 100%;
 
-			transition: background-color 0.1s ease-in-out 0s;
-
-			.icon-play {
-				visibility: collapse;
-			}
-			.icon-download {
-				visibility: visible;
-			}
+			@include mixin.button-gradient($color: 'grey');
 
 			&.playable {
 				@include mixin.button-gradient($color: 'green');
-
-				.icon-download {
-					visibility: collapse;
-				}
-				.icon-play {
-					visibility: visible;
-				}
 			}
 
 			&.queued {

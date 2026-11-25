@@ -21,6 +21,14 @@ interface PanelTagNameMap {
 	MomHudStickyCharge: MomHudStickyCharge;
 	MomHudStrafeSync: MomHudStrafeSync;
 	MomHudDFJump: MomHudDFJump;
+	MomHudDFCgaz: MomHudDFCgaz;
+	MomHudDFSnap: MomHudDFSnap;
+	MomHudDFPrime: MomHudDFPrime;
+	MomHudDFTurnt: MomHudDFTurnt;
+	MomHudDFCompass: MomHudDFCompass;
+	MomHudDFCompassArrow: MomHudDFCompassArrow;
+	MomHudDFPitch: MomHudDFPitch;
+	MomHudDFAngles: MomHudDFAngles;
 	MomHudJumpTiming: MomHudJumpTiming;
 	MomHudStrafeTrainer: MomHudStrafeTrainer;
 	MomHudSpectate: MomHudSpectate;
@@ -36,6 +44,12 @@ interface MomentumMapSelector extends AbstractPanel<'MomentumMapSelector'> {
 	readonly selectedMapData: MapCacheAPI.MapData;
 
 	applyFilters(totalChange: boolean): void;
+	/**
+	 * Tell the C++ side which run style is on show, so the per-style data it owns (the completed
+	 * filter, and the style it dispatches completion updates for) matches the style selector.
+	 * Re-applies filters, since completion is per style.
+	 */
+	setSelectedStyle(style: import('common/web/enums/style.enum').Style): void;
 	applyBackgroundMapImage(id: string, baseUrl: string | null): void;
 	applyMapImageToImagePanel(imagePanel: Image, id: string, small: boolean, baseUrl: string): void;
 }
@@ -46,20 +60,45 @@ interface MapEntry extends AbstractPanel<'MapEntry'> {
 }
 
 interface Leaderboards extends AbstractPanel<'Leaderboards'> {
-	/** Gets the status of the given times list. 0 means loaded */
-	getTimesListStatus(
-		type: import('common/leaderboard').LeaderboardType
-	): import('common/leaderboard').LeaderboardStatusType;
+	handler: import('/pages/leaderboards/leaderboards').LeaderboardsHandler;
 
-	/** Applies the currently selected filters to the times list */
-	applyFilters(): void;
+	/**
+	 * Fetches a page (20 records) of leaderboard records for a map/track/gamemode/style/filter.
+	 * Returns a request token; listen for `LeaderboardRecords_Loaded` (which passes the same
+	 * token) then call `getLoadedLeaderboardRecords()` to read the result. A newer call
+	 * supersedes any in-flight one.
+	 *
+	 * `filter` is a LeaderboardRecordsFilter: 0=global, 1=friends, 2=lobby, 3=savedReplays, 4=around.
+	 * `page` is 0-based (ignored for `around`, which resolves to the page containing the user's PB).
+	 */
+	getLeaderboardRecords(
+		mapID: int32,
+		gamemode: import('common/web/enums/gamemode.enum').Gamemode,
+		trackType: import('common/web/enums/track-type.enum').TrackType,
+		trackNum: int32,
+		style: import('common/web/enums/style.enum').Style,
+		filter: import('common/leaderboard').LeaderboardRecordsFilter,
+		page: int32
+	): int32;
 
-	selectTrack(trackType: import('common/web/enums/track-type.enum').TrackType, trackNum: int32): void;
+	/** Returns the most recently loaded page of leaderboard records fetched via `getLeaderboardRecords`. */
+	getLoadedLeaderboardRecords(): import('common/leaderboard').LoadedLeaderboardRecords;
+
+	/**
+	 * Watches the replay for the loaded record at the given 0-based page index (its position in
+	 * `getLoadedLeaderboardRecords().records`). Online replays are downloaded first. No-op if the
+	 * index is out of range.
+	 */
+	playRecordReplay(index: int32): void;
+
+	/** Sets the loaded record at the given 0-based page index as the comparison run (downloads it first for online records). */
+	setRecordComparisonRun(index: int32): void;
+
+	/** Deletes the saved-replay record at the given 0-based page index from disk. No-op for online records. */
+	deleteRecordReplay(index: int32): void;
 }
 
-interface LeaderboardEntry extends AbstractPanel<'LeaderboardEntry'> {
-	readonly timeData: any;
-}
+interface LeaderboardEntry extends AbstractPanel<'LeaderboardEntry'> {}
 
 interface RangeColorDisplay extends AbstractPanel<'RangeColorDisplay'> {
 	min: float;
@@ -135,6 +174,24 @@ interface MomHudStrafeSync extends AbstractHudPanel<'MomHudStrafeSync'> {
 }
 
 interface MomHudDFJump extends AbstractHudPanel<'MomHudDFJump'> {}
+
+interface MomHudDFCgaz extends AbstractHudPanel<'MomHudDFCgaz'> {}
+
+interface MomHudDFSnap extends AbstractHudPanel<'MomHudDFSnap'> {}
+
+interface MomHudDFPrime extends AbstractHudPanel<'MomHudDFPrime'> {}
+
+interface MomHudDFTurnt extends AbstractHudPanel<'MomHudDFTurnt'> {
+	GetTurntPhysics(): DefragAPI.TurntPhysics;
+}
+
+interface MomHudDFCompass extends AbstractHudPanel<'MomHudDFCompass'> {}
+
+interface MomHudDFCompassArrow extends AbstractHudPanel<'MomHudDFCompassArrow'> {}
+
+interface MomHudDFPitch extends AbstractHudPanel<'MomHudDFPitch'> {}
+
+interface MomHudDFAngles extends AbstractHudPanel<'MomHudDFAngles'> {}
 
 interface MomHudJumpTiming extends AbstractHudPanel<'MomHudJumpTiming'> {}
 
@@ -215,6 +272,12 @@ interface HudCustomizer extends AbstractPanel<'HudCustomizer'> {
 	 * Precisely, it's whether the input capture is enabled.
 	 */
 	isOpen(): boolean;
+
+	/** Whether either ctrl key is held. */
+	isControlDown(): boolean;
+
+	/** Whether either shift key is held. */
+	isShiftDown(): boolean;
 
 	/** Saves the given object to cfg/hud/{path}.kv3. */
 	saveLayout(path: string, data: import('hud/customizer').HudLayout): boolean;

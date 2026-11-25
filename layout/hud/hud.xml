@@ -3,6 +3,10 @@
 		<include src="file://{resources}/styles/main.scss" />
 	</styles>
 
+	<scripts>
+		<include type="module" src="file://{scripts}/hud/moderation.ts" />
+	</scripts>
+
 	<Hud class="hud" hittest="false" useglobalcontext="false">
 		<!-- Non-interactive HUD elements have hit test disabled for efficiency -->
 
@@ -11,7 +15,14 @@
 			<MomHudGhostEntities />
 			<MomHudConcEntities id="ConcEntities" />
 			<MomHudDamageIndicator />
-			<MomHudCgaz /> <!-- TODO: Not in customizer, requires c++ work -->
+			<MomHudDFCgaz id="DFCgaz" />
+			<MomHudDFSnap id="DFSnap" />
+			<MomHudDFPrime id="DFPrime" />
+			<MomHudDFTurnt id="DFTurnt" />
+			<MomHudDFCompass id="DFCompass" />
+			<MomHudDFCompassArrow id="DFCompassArrow" />
+			<MomHudDFPitch id="DFPitch" />
+			<MomHudDFAngles id="DFAngles" />
 			<MomHudReticle />
 		</Panel>
 
@@ -24,6 +35,8 @@
         
         <MomHudMapInfo id="MapInfo" />
         <MomHudSpecInfo id="SpecInfo" />
+        <!-- Not customizer-managed; positioned above the chat box via voice.scss -->
+        <MomHudVoice />
         <MomHudChat id="Chat" />
         <MomHudStatus id="Status" />
 		<MomHudTimer id="Timer" />
@@ -45,7 +58,7 @@
         <MomHudAhopSprint id="AhopSprint"/>
 
         <!-- Not in customizer -->
-		<ConVarEnabler convar="mom_zoning_enable" togglevisibility="true">
+		<ConVarEnabler class="full" convar="mom_zoning_enable" togglevisibility="true" hittest="false" hittestchildren="false">
 			<MomHudZoning />
 		</ConVarEnabler>
         <MomHudJumpTiming />
@@ -53,11 +66,11 @@
 
         <!-- Old, broken hud elements, might get revived some day, not important -->
 		<!-- <HudBoneCounts id="BoneCount" /> TODO: HudTopCenter, not in customizer, probably gonna get nuked -->
-        <!-- <MomHudStrafeSync id="StrafeSync" /> This is broken and probably not worth fixing --> 
+        <!-- <MomHudStrafeSync id="StrafeSync" /> This is broken and probably not worth fixing -->
 
 
         <!-- Hud panels using blur must be placed below blur definitions -->
-		<HudBlurTarget id="HudBlur" blurrects="TabMenuWrapper Spectator" class="hud-blur" hittest="false" hittestchildren="false">
+		<HudBlurTarget id="HudBlur" blurrects="Spectator" class="hud-blur" hittest="false" hittestchildren="false">
 			<BackbufferImagePanel class="full" />
 		</HudBlurTarget>
 

@@ -15,6 +15,34 @@ declare namespace MomentumAPI {
 	/** Whether local user is allowed to submit runs. */
 	function AllowRunSubmission(): boolean;
 
+	/** Kind of communication a timed ban applies to. */
+	const enum ChatBanType {
+		CHAT = 0,
+		VOICE = 1
+	}
+
+	/** Whether the local user is currently banned from this kind of communication. */
+	function IsChatBanned(type: ChatBanType): boolean;
+
+	/** Seconds until the ban expires. -1 if it never expires, 0 if not banned. */
+	function GetChatBanSecondsRemaining(type: ChatBanType): number;
+
+	/** Reason the ban was issued, empty if none was given or not banned. */
+	function GetChatBanReason(type: ChatBanType): string;
+
+	const enum ReportCategory {
+		OTHER = 0,
+		INAPPROPRIATE_CONTENT = 1,
+		PLAGIARISM = 2,
+		SPAM = 3
+	}
+
+	/**
+	 * Report another player. Resolves their SteamID against the backend first, so
+	 * this makes two requests; fires MomAPI_PlayerReported when complete.
+	 */
+	function ReportPlayer(steamID: steamID, category: ReportCategory, message: string): void;
+
 	/** Gets the local players level */
 	function GetPlayerXp(): int32;
 
@@ -155,7 +183,7 @@ declare namespace MomentumPlayerAPI {
 	/** Gets the player or spec target's current view angles */
 	function GetAngles(): vec3;
 
-	/** Gets the player or spec target's current mechanical energy, expressed as the height (in units) reachable above their last jump position */
+	/** Gets the player or spec target's current mechanical energy, expressed as the height (in units) reachable above the ground they last touched in their start zone */
 	function GetEnergy(): float;
 
 	/** Gets the player or spec target's percentage of sync'd strafe ticks according to calculation type */
@@ -257,6 +285,12 @@ declare namespace SteamLobbyAPI {
 
 	/** Get the maximum member limit a lobby may have */
 	function GetMaxAllowedMemberLimit(): number;
+
+	/** Returns true if the local player is currently in a lobby */
+	function IsInLobby(): boolean;
+
+	/** Returns the member count of the current lobby */
+	function GetCurrentLobbyMemberCount(): number;
 }
 
 declare namespace GameModeAPI {
@@ -301,6 +335,9 @@ declare namespace GameModeAPI {
 
 	/** Gets all valid run styles for the provided gamemode. */
 	function GetValidRunStyles(gamemode: Gamemode): number[];
+
+	/** Gets the run style whose leaderboard is shown by default for the provided gamemode. */
+	function GetDefaultLeaderboardRunStyle(gamemode: Gamemode): import('common/web/enums/style.enum').Style;
 }
 
 declare namespace MomentumTimerAPI {
@@ -379,6 +416,50 @@ declare namespace MapCacheAPI {
 
 	/** Fetches private maps visible to the user */
 	function FetchPrivateMaps(): void;
+
+	/**
+	 * Gets the local user's cached per-track completions for a map in a gamemode + style, merging
+	 * the cached rank/total completions, static track tier, and persistent PB time. Tracks have no
+	 * rank or total completions until {@link RefreshCompletions} has populated the cache.
+	 */
+	function GetCompletions(
+		mapID: uint32,
+		gamemode: import('common/web/enums/gamemode.enum').Gamemode,
+		style: import('common/web/enums/style.enum').Style
+	): import('common/maps').MapUserCompletions;
+
+	/**
+	 * Refetches a map's completions from online if the cache is stale/missing (60s cooldown),
+	 * firing MapCache_CompletionsUpdate when the fetch finishes, including on failure. No-op if
+	 * already fresh. Returns whether a fetch was started.
+	 */
+	function RefreshCompletions(
+		mapID: uint32,
+		gamemode: import('common/web/enums/gamemode.enum').Gamemode,
+		style: import('common/web/enums/style.enum').Style
+	): boolean;
+
+	/**
+	 * Fetches the local user's PB times for a map into the cache (once per session), firing
+	 * MapCache_CompletionsUpdate for the given gamemode + style when they land. Lets a console-loaded
+	 * map show PB times without opening it in the map selector first.
+	 */
+	function RefreshUserPersonalBests(
+		mapID: uint32,
+		gamemode: import('common/web/enums/gamemode.enum').Gamemode,
+		style: import('common/web/enums/style.enum').Style
+	): void;
+
+	/**
+	 * Reloads the current (offline) map's saved replays off disk and rebuilds the local user's
+	 * per-track PBs, computed game-side from only their own replays (matched by SteamID, so
+	 * downloaded runs never count). Fires MapCache_CompletionsUpdate (with mapID 0) for the given
+	 * gamemode + style when they land.
+	 */
+	function RefreshLocalCompletions(
+		gamemode: import('common/web/enums/gamemode.enum').Gamemode,
+		style: import('common/web/enums/style.enum').Style
+	): void;
 }
 
 declare namespace SpectatorAPI {
@@ -460,87 +541,14 @@ declare namespace SpeedometerSettingsAPI {
 }
 
 declare namespace DefragAPI {
-	interface AccelConfig {
-		enable: boolean;
-		mirrorEnable: boolean;
-		mirrorBorder: float;
-		scaleEnable: boolean;
-		minSpeed: float;
-		height: float;
-		offset: float;
-		dzColor: rgbaColor;
-		fastColor: rgbaColor;
-		slowColor: rgbaColor;
-		turnColor: rgbaColor;
-	}
-
-	interface PrimeConfig {
-		enable: boolean;
-		truenessMode: int32;
-		inactiveEnable: boolean;
-		oneLineEnable: boolean;
-		minSpeed: float;
-		height: float;
-		offset: float;
-		gainColor: rgbaColor;
-		lossColor: rgbaColor;
-		altColor: rgbaColor;
-		highlightEnable: boolean;
-		highlightStrength: float;
-		highlightBorder: float;
-		highlightColor: rgbaColor;
-		scaleHeightEnable: boolean;
-		scaleColorEnable: boolean;
-		arrowEnable: boolean;
-		arrowSize: float;
-		arrowColor: rgbaColor;
-	}
-
-	interface SnapConfig {
-		enable: boolean;
-		enableHeightGain: boolean;
-		highlightMode: int32;
-		colorMode: int32;
-		minSpeed: float;
-		height: float;
-		offset: float;
-		color: rgbaColor;
-		altColor: rgbaColor;
-		highlightColor: rgbaColor;
-		altHighlightColor: rgbaColor;
-		fastColor: rgbaColor;
-		slowColor: rgbaColor;
-	}
-
-	interface WIndicatorConfig {
-		enable: boolean;
-		height: float;
-		offset: float;
-		size: float;
-		color: rgbaColor;
-		border: float;
-	}
-
-	interface CompassConfig {
-		compassMode: int32;
-		compassArrowSize: float;
-		compassTickSize: float;
-		compassOffset: float;
-		pitchEnable: boolean;
-		pitchTarget: string;
-		pitchWidth: float;
-		pitchOffset: float;
-		statMode: int32;
-		color: rgbaColor;
-		highlightColor: rgbaColor;
-	}
-
-	interface GroundboostConfig {
-		enable: boolean;
-		overshootEnable: boolean;
-		textMode: int32;
-		textColorMode: int32;
-		crashHlEnable: boolean;
+	/** Movement values the turnt-meter's optimal turn rate depends on. All zero outside CPM. */
+	interface TurntPhysics {
+		airAccelerate: float;
+		airStrafeAccelerate: float;
+		airControl: float;
+		airDecelerate: float;
+		/** Degrees */
+		airDecelerateAngle: float;
 	}
 
 	const enum DefragPhysics {
@@ -549,23 +557,50 @@ declare namespace DefragAPI {
 		VTG = 2
 	}
 
+	/** DF HUD state for one frame, built once per frame by the engine. Angles from the view are in degrees, derived angles in radians. */
+	interface HUDFrameState {
+		frame: int32;
+		valid: boolean;
+		viewYaw: float;
+		viewPitch: float;
+		/** Full horizontal FOV in degrees, scaled by the screen aspect ratio */
+		hFov: float;
+		/** Full vertical FOV in degrees */
+		vFov: float;
+		screenWidth: int32;
+		screenHeight: int32;
+		uiScale: float;
+		velocity: vec3;
+		speed: float;
+		dropSpeed: float;
+		wishVel: vec3;
+		acceleration: float;
+		friction: float;
+		maxspeed: float;
+		/** Uncapped speed the acceleration adds per tick */
+		accelSpeed: float;
+		moveStatus: int32;
+		hasteTime: int32;
+		physicsMode: DefragPhysics;
+		tickInterval: float;
+		/** Seconds since the last rendered frame */
+		frameTime: float;
+		wishDir: vec3;
+		wishAngle: float;
+		velAngle: float;
+		forwardMove: int32;
+		rightMove: int32;
+		inputMode: int32;
+		falling: boolean;
+		snapShift: boolean;
+		airControl: boolean;
+	}
+
 	function GetDFPhysicsMode(): DefragPhysics;
 
-	function GetHUDProjection(): import('hud/cgaz').ProjectionMode;
+	function GetHUDFrameState(): HUDFrameState;
 
-	function GetHUDFOV(): float;
-
-	function GetHUDAccelCFG(): AccelConfig;
-
-	function GetHUDPrimeCFG(): PrimeConfig;
-
-	function GetHUDSnapCFG(): SnapConfig;
-
-	function GetHUDWIndicatorCFG(): WIndicatorConfig;
-
-	function GetHUDCompassCFG(): CompassConfig;
-
-	function GetHUDGroundboostCFG(): GroundboostConfig;
+	function GetHUDProjection(): import('common/df-hud').ProjectionMode;
 }
 
 declare namespace ToastAPI {
